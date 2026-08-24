@@ -3,6 +3,7 @@ class User < ApplicationRecord
   class UploadTooLarge < StandardError; end
 
   has_many :login_tokens, dependent: :delete_all
+  has_many :api_tokens, dependent: :delete_all
   has_many :google_drive_imports, dependent: :delete_all
   has_many :sends, dependent: :destroy
   has_many :collections, dependent: :destroy

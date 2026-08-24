@@ -1,0 +1,69 @@
+<% content_for :title, "API tokens · Campsend" %>
+
+<div class="page-heading">
+  <div>
+    <p class="eyebrow">Settings</p>
+    <h1>API tokens</h1>
+  </div>
+</div>
+
+<p class="token-intro">A token lets a program act as you. Give each one its own name so you can revoke it without disturbing the others.</p>
+
+<% if @raw_token %>
+  <div class="token-reveal" role="alert">
+    <h2>Copy your token now</h2>
+    <p>This is the only time it's shown. If you lose it, revoke this token and make another.</p>
+    <div class="token-reveal__value" data-controller="clipboard">
+      <code data-clipboard-target="source"><%= @raw_token %></code>
+      <button type="button" class="button button--quiet" data-action="clipboard#copy" data-clipboard-target="button">Copy</button>
+    </div>
+  </div>
+<% end %>
+
+<%= form_with model: @token || ApiToken.new, url: api_tokens_path, class: "token-create" do |form| %>
+  <% if @token&.errors&.any? %>
+    <div class="form-errors"><%= @token.errors.full_messages.to_sentence %></div>
+  <% end %>
+  <div class="field">
+    <%= form.label :name, "What is it for?" %>
+    <%= form.text_field :name, required: true, maxlength: 60, placeholder: "Claude on my laptop" %>
+  </div>
+  <div class="field">
+    <%= form.label :scope, "What can it do?" %>
+    <%= form.select :scope, [ [ "Read deliveries", "read" ], [ "Read and send deliveries", "write" ] ] %>
+  </div>
+  <div class="field">
+    <%= form.label :expires_at, "Expires (optional)" %>
+    <%= form.datetime_field :expires_at %>
+  </div>
+  <%= form.submit "Create token", class: "button button--primary" %>
+<% end %>
+
+<% if @tokens.any? %>
+  <table class="token-list">
+    <thead>
+      <tr>
+        <th scope="col">Name</th>
+        <th scope="col">Can do</th>
+        <th scope="col">Last used</th>
+        <th scope="col">Expires</th>
+        <th scope="col"><span class="visually-hidden">Actions</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @tokens.each do |token| %>
+        <tr>
+          <th scope="row"><%= token.name %></th>
+          <td><%= token.writable? ? "Read and send" : "Read" %></td>
+          <td><%= token.last_used_at ? "#{time_ago_in_words(token.last_used_at)} ago" : "Never" %></td>
+          <td><%= token.expires_at ? l(token.expires_at.to_date, format: :long) : "Never" %></td>
+          <td class="token-list__actions">
+            <%= button_to "Revoke", api_token_path(token), method: :delete, class: "button button--quiet", form: { data: { turbo_confirm: "Revoke #{token.name}? Anything using it stops working immediately." } } %>
+          </td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+<% else %>
+  <p class="token-empty">You have no tokens yet.</p>
+<% end %>

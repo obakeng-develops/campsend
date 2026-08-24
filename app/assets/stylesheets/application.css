@@ -449,6 +449,22 @@
 }
 
 @layer utilities {
+  .token-intro { color: var(--text-secondary); margin-bottom: var(--space-6); max-width: 60ch; }
+  .token-empty { color: var(--text-tertiary); margin-top: var(--space-6); }
+  .token-reveal { background: var(--bg-primary); border: 1px solid var(--border-primary); border-radius: var(--radius-lg); box-shadow: var(--card-shadow); margin-bottom: var(--space-6); padding: var(--space-5); }
+  .token-reveal h2 { font-size: 1rem; font-weight: 600; }
+  .token-reveal > p { color: var(--text-secondary); font-size: 0.9375rem; margin-top: var(--space-2); }
+  .token-reveal__value { align-items: center; background: var(--bg-secondary); border-radius: var(--radius-md); display: flex; gap: var(--space-3); justify-content: space-between; margin-top: var(--space-4); padding: var(--space-3) var(--space-4); }
+  .token-reveal__value code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.8125rem; overflow-wrap: anywhere; }
+  .token-create { display: grid; gap: var(--space-4); justify-items: start; margin-bottom: var(--space-8); max-width: 32rem; }
+  .token-create .field { width: 100%; }
+  .token-list { border-collapse: collapse; width: 100%; }
+  .token-list th, .token-list td { border-bottom: 1px solid var(--border-secondary); padding: var(--space-3) var(--space-4) var(--space-3) 0; text-align: left; }
+  .token-list thead th { color: var(--text-tertiary); font-size: 0.75rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+  .token-list tbody th { font-weight: 500; }
+  .token-list td { color: var(--text-secondary); font-size: 0.9375rem; }
+  .token-list__actions { padding-right: 0; text-align: right; }
+
   .visually-hidden { height: 1px; margin: -1px; overflow: hidden; padding: 0; position: absolute; width: 1px; clip: rect(0 0 0 0); white-space: nowrap; }
 }
 
