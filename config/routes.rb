@@ -30,6 +30,8 @@ Rails.application.routes.draw do
   get "d/:public_id/files/:id", to: "deliveries/files#show", as: :delivery_file
   post "d/:public_id/files/:id/download", to: "deliveries/files#download", as: :download_delivery_file
 
+  post "mcp", to: "mcp/server#create", as: :mcp_server
+
   post "api/v1/direct_uploads", to: "api/v1/direct_uploads#create", as: :rails_direct_uploads
   namespace :api do
     namespace :v1 do
