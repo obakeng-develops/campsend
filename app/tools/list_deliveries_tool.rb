@@ -4,7 +4,7 @@ class ListDeliveriesTool < MCP::Tool
 
   tool_name "list_deliveries"
   description "List the deliveries you have sent, newest first, with their status and when each was opened or downloaded."
-  annotations(read_only_hint: true)
+  annotations(read_only_hint: true, destructive_hint: false, idempotent_hint: true)
   input_schema(
     properties: {
       limit: { type: "integer", description: "How many to return. Defaults to #{DEFAULT_LIMIT}, at most #{MAX_LIMIT}." },

@@ -51,15 +51,21 @@ class McpServerTest < ActionDispatch::IntegrationTest
     assert_empty response.body
   end
 
-  test "tools/list advertises both read tools as read-only" do
+  test "tools/list declares which tools mutate state" do
     call("tools/list")
 
     assert_response :success
-    names = json.dig("result", "tools").map { |tool| tool["name"] }
-    assert_equal %w[get_delivery list_deliveries], names.sort
-    json.dig("result", "tools").each do |tool|
-      assert tool.dig("annotations", "readOnlyHint"), "#{tool["name"]} must declare it does not mutate"
+    tools = json.dig("result", "tools").index_by { |tool| tool["name"] }
+    assert_equal %w[create_delivery get_delivery list_deliveries], tools.keys.sort
+
+    %w[list_deliveries get_delivery].each do |name|
+      assert tools.dig(name, "annotations", "readOnlyHint"), "#{name} does not mutate and must say so"
+      # The gem defaults destructiveHint to true, which would make a client warn
+      # before a harmless call.
+      assert_not tools.dig(name, "annotations", "destructiveHint"), "#{name} must not be flagged destructive"
     end
+
+    assert_not tools.dig("create_delivery", "annotations", "readOnlyHint"), "create_delivery changes state and must say so"
   end
 
   test "list_deliveries returns the caller's deliveries and nobody else's" do
@@ -152,7 +158,125 @@ class McpServerTest < ActionDispatch::IntegrationTest
     assert_not_nil token.reload.last_used_at
   end
 
+  test "create_delivery needs a write token" do
+    blob = owned_blob
+
+    assert_no_difference "Send.count" do
+      create(file_ids: [ blob.id ])
+    end
+
+    assert json.dig("result", "isError")
+    assert_match(/write scope/, text_content)
+  end
+
+  test "create_delivery sends a delivery and returns it" do
+    blob = owned_blob
+    writer
+
+    assert_difference [ "Send.count", "ActionMailer::Base.deliveries.size" ], 1 do
+      perform_enqueued_jobs { create(file_ids: [ blob.id ], message: "Here you go.", slug: "final-contract") }
+    end
+
+    assert_response :success
+    assert_not json.dig("result", "isError")
+    assert_equal "final-contract", structured["delivery_identifier"]
+    assert_equal "them@example.com", structured["recipient_email"]
+    assert_equal 1, structured["files"].size
+
+    delivery = Send.last
+    assert_equal @user, delivery.user
+    # retain_files runs, so the blob is in the sender's library afterwards.
+    assert_includes @user.files.blobs.ids, blob.id
+  end
+
+  test "create_delivery accepts only blobs the caller owns" do
+    other = User.create!(email_address: "other@example.com")
+    theirs = ActiveStorage::Blob.create_and_upload!(io: StringIO.new("x"), filename: "theirs.txt", content_type: "text/plain")
+    theirs.update!(uploader_id: other.id)
+    writer
+
+    assert_no_difference "Send.count" do
+      create(file_ids: [ theirs.id ])
+    end
+
+    assert json.dig("result", "isError")
+    assert_match(/not yours/, text_content)
+
+    assert_no_difference "Send.count" do
+      create(file_ids: [ owned_blob.id, theirs.id ])
+    end
+
+    assert json.dig("result", "isError")
+  end
+
+  test "create_delivery reports the model's own validation messages" do
+    blob = owned_blob
+    writer
+
+    assert_no_difference "Send.count" do
+      create(file_ids: [ blob.id ], recipient_email: "not-an-email")
+    end
+    assert_match(/Recipient email is invalid/, text_content)
+
+    assert_no_difference "Send.count" do
+      create(file_ids: [ blob.id ], slug: "files")
+    end
+    assert_match(/Slug is reserved/, text_content)
+
+    assert_no_difference "Send.count" do
+      create(file_ids: [ blob.id ], scheduled_at: 1.hour.ago.iso8601)
+    end
+    assert_match(/Scheduled at must be in the future/, text_content)
+  end
+
+  test "a policy denial creates nothing and carries the policy's own message" do
+    blob = owned_blob
+    writer
+    denial = Campsend::Policy::Denied.new("Your Free plan includes 15 deliveries each month.", outcome: "delivery_limit")
+
+    Campsend.policy.define_singleton_method(:admit_delivery) { |user:, &block| raise denial }
+    begin
+      assert_no_difference [ "Send.count", "ActionMailer::Base.deliveries.size" ] do
+        create(file_ids: [ blob.id ])
+      end
+    ensure
+      Campsend.policy.singleton_class.remove_method(:admit_delivery)
+    end
+
+    assert json.dig("result", "isError")
+    assert_equal "Your Free plan includes 15 deliveries each month.", text_content
+  end
+
+  test "create_delivery refuses more files than a delivery allows" do
+    writer
+    blobs = (Send::MAX_FILES + 1).times.map { |i| owned_blob("file#{i}.txt") }
+
+    assert_no_difference "Send.count" do
+      create(file_ids: blobs.map(&:id))
+    end
+
+    assert json.dig("result", "isError")
+  end
+
   private
+    def writer
+      _, @raw_token = ApiToken.issue_for(@user, name: "Writer", scope: "write")
+    end
+
+    def owned_blob(filename = "contract.txt")
+      ActiveStorage::Blob.create_and_upload!(io: StringIO.new("contract"), filename: filename, content_type: "text/plain").tap do |blob|
+        blob.update!(uploader_id: @user.id)
+      end
+    end
+
+    def create(recipient_email: "them@example.com", **arguments)
+      call("tools/call", params: { name: "create_delivery", arguments: { recipient_email: recipient_email, **arguments } })
+    end
+
+    def text_content
+      json.dig("result", "content", 0, "text")
+    end
+
     def call(method, params: nil, token: :default)
       raw = token == :default ? @raw_token : token
       headers = { "CONTENT_TYPE" => "application/json" }

@@ -6,7 +6,7 @@ module Mcp
   # application/json, so this stays a plain POST.
   class ServerController < ApplicationController
     SERVER_NAME = "campsend"
-    TOOLS = [ ListDeliveriesTool, GetDeliveryTool ].freeze
+    TOOLS = [ ListDeliveriesTool, GetDeliveryTool, CreateDeliveryTool ].freeze
 
     allow_unauthenticated_access
     skip_forgery_protection
