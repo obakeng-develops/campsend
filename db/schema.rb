@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_18_130001) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_24_100000) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -40,6 +40,23 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_18_130001) do
     t.bigint "blob_id", null: false
     t.string "variation_digest", null: false
     t.index ["blob_id", "variation_digest"], name: "index_active_storage_variant_records_uniqueness", unique: true
+  end
+
+  create_table "api_tokens", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.datetime "expires_at"
+    t.datetime "last_used_at"
+    t.string "name", null: false
+    t.datetime "revoked_at"
+    t.string "scope", null: false
+    t.string "token_digest", null: false
+    t.datetime "updated_at", null: false
+    t.integer "user_id", null: false
+    t.index ["token_digest"], name: "index_api_tokens_on_token_digest", unique: true
+    t.index ["user_id", "name"], name: "index_api_tokens_on_user_id_and_name", unique: true, where: "revoked_at IS NULL"
+    t.index ["user_id"], name: "index_api_tokens_on_user_id"
+    t.check_constraint "length(trim(name)) BETWEEN 1 AND 60", name: "api_tokens_name_length"
+    t.check_constraint "scope IN ('read', 'write')", name: "api_tokens_scope"
   end
 
   create_table "collection_files", force: :cascade do |t|
@@ -156,6 +173,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_18_130001) do
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_blobs", "users", column: "uploader_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "api_tokens", "users"
   add_foreign_key "collection_files", "active_storage_blobs", column: ["blob_id", "user_id"], primary_key: ["id", "uploader_id"]
   add_foreign_key "collection_files", "collections", column: ["collection_id", "user_id"], primary_key: ["id", "user_id"]
   add_foreign_key "collection_files", "users"
