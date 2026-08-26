@@ -1,7 +1,7 @@
 class GetDeliveryTool < MCP::Tool
   tool_name "get_delivery"
   description "Get one delivery you sent, with its files and the times it was sent, first opened and first downloaded."
-  annotations(read_only_hint: true)
+  annotations(read_only_hint: true, destructive_hint: false, idempotent_hint: true)
   input_schema(
     properties: {
       delivery_identifier: { type: "string", description: "The delivery's slug or public id, as returned by list_deliveries." }
