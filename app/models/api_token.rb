@@ -51,6 +51,8 @@ class ApiToken < ApplicationRecord
     update!(revoked_at: Time.current) unless revoked?
   end
 
+  def audit_label = name
+
   def revoked? = revoked_at.present?
   def expired? = expires_at&.past? || false
   def active? = !revoked? && !expired?

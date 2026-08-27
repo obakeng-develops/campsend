@@ -111,6 +111,7 @@ class SendsController < ApplicationController
 
   def rotate_access
     @send.update!(email_status: "pending")
+    AuditEvent.record!(action: "delivery.access_rotation_requested", target: @send)
     @send.published? ? DeliveryAccessEmailJob.perform_later(@send) : DeliveryEmailJob.enqueue(@send)
     redirect_to @send, notice: "We’re emailing a new delivery link to #{@send.recipient_email}."
   end
@@ -151,6 +152,9 @@ class SendsController < ApplicationController
         Campsend.policy.admit_delivery(user: current_user) { @send.save }
       rescue Campsend::Policy::Denied => error
         WideEvent.add(outcome: error.outcome)
+        # A denial is the highest-signal row in the table, and it is the one
+        # nothing else in the product keeps.
+        AuditEvent.record!(action: "delivery.created", outcome: "denied", denial_reason: error.outcome)
         @send.errors.add(:base, error.message)
         false
       end

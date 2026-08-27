@@ -15,6 +15,7 @@ class Api::V1::DirectUploadsController < ActiveStorage::DirectUploadsController
     render json: { error: error.message }, status: :bad_request
   rescue Campsend::Policy::Denied => error
     WideEvent.add(outcome: error.outcome)
+    AuditEvent.record!(action: "file.uploaded", outcome: "denied", denial_reason: error.outcome)
     render json: { error: error.message }, status: :unprocessable_content
   end
 

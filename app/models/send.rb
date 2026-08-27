@@ -13,6 +13,7 @@ class Send < ApplicationRecord
   has_many :send_events, inverse_of: :delivery, dependent: :delete_all
   enum :email_status, { pending: "pending", sent: "sent", failed: "failed" }, prefix: true, validate: true
   before_destroy :retain_published_slug
+  after_create :record_creation
 
   scope :available, -> { where.not(published_at: nil).where(canceled_at: nil, access_revoked_at: nil, access_expires_at: Time.current..).where.not(access_token_digest: nil) }
 
@@ -47,7 +48,13 @@ class Send < ApplicationRecord
       current = delivery_revisions.includes(files_attachments: :blob).order(number: :desc).first!
       replaced = current.files.attachments.find(attachment_id)
       blobs = current.files.attachments.map { |attachment| attachment == replaced ? replacement_blob : attachment.blob }
-      append_revision!(blobs:)
+      append_revision!(blobs:).tap do
+        AuditEvent.record!(
+          action: "delivery.file_replaced",
+          target: self,
+          changed_fields: { "filename" => [ replaced.blob.filename.to_s, replacement_blob.filename.to_s ] }
+        )
+      end
     end
   end
 
@@ -80,6 +87,7 @@ class Send < ApplicationRecord
       return false unless publication_pending?
 
       update!(canceled_at: Time.current)
+      AuditEvent.record!(action: "delivery.canceled", target: self)
     end
   end
 
@@ -100,13 +108,25 @@ class Send < ApplicationRecord
   end
 
   def issue_access_token!
-    raw_token = issue_access_token
-    save!
-    raw_token
+    transaction do
+      raw_token = issue_access_token
+      previous = access_expires_at_was
+      save!
+      AuditEvent.record!(
+        action: "delivery.access_rotated",
+        target: self,
+        changed_fields: { "access_expires_at" => [ previous&.iso8601, access_expires_at&.iso8601 ] }
+      )
+      raw_token
+    end
   end
 
   def delivery_identifier
     slug.presence || public_id
+  end
+
+  def audit_label
+    "#{delivery_identifier} to #{recipient_email}"
   end
 
   def self.find_by_delivery_identifier(identifier)
@@ -126,13 +146,30 @@ class Send < ApplicationRecord
   end
 
   def revoke_access!
-    update!(access_revoked_at: Time.current)
+    transaction do
+      update!(access_revoked_at: Time.current)
+      AuditEvent.record!(action: "delivery.access_revoked", target: self)
+    end
   end
 
+  AUDITED_EVENTS = {
+    "sent" => "delivery.sent",
+    "opened" => "delivery.opened",
+    "downloaded" => "delivery.file_downloaded"
+  }.freeze
+
   def record_event!(event_type, occurred_at: Time.current)
-    event = send_events.find_or_create_by!(event_type: event_type) { |item| item.occurred_at = occurred_at }
-    update!(email_status: "sent", published_at: published_at || occurred_at) if event_type.to_s == "sent" && (!email_status_sent? || !published?)
-    event
+    transaction do
+      event = send_events.find_or_create_by!(event_type: event_type) { |item| item.occurred_at = occurred_at }
+      update!(email_status: "sent", published_at: published_at || occurred_at) if event_type.to_s == "sent" && (!email_status_sent? || !published?)
+      # Only on the first occurrence, because find_or_create_by returns the
+      # existing row on a repeat and the log records what happened, not what
+      # was asked for twice.
+      if event.previously_new_record? && (action = AUDITED_EVENTS[event_type.to_s])
+        AuditEvent.record!(action: action, target: self, occurred_at: occurred_at)
+      end
+      event
+    end
   end
 
   def status
@@ -162,6 +199,10 @@ class Send < ApplicationRecord
   end
 
   private
+    def record_creation
+      AuditEvent.record!(action: scheduled? ? "delivery.scheduled" : "delivery.created", target: self)
+    end
+
     def files_revision
       if new_record?
         @initial_revision ||= delivery_revisions.build(number: 1, collection_name: collection&.name)
