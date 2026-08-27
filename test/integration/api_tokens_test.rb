@@ -81,6 +81,34 @@ class ApiTokensTest < ActionDispatch::IntegrationTest
     assert_select ".form-errors", text: /Revoke one first/
   end
 
+  test "the token table survives a phone" do
+    ApiToken.issue_for(@user, name: "Mine", scope: "read")
+
+    get api_tokens_path
+
+    assert_response :success
+    # Five columns do not fit 375px. Either the wrapper scrolls it or the rows
+    # restack, and without one of them the whole page scrolls sideways.
+    assert_select ".token-list-scroll > .token-list", count: 1
+    # Once the header row is hidden each cell has to name itself.
+    %w[Can\ do Last\ used Expires].each do |label|
+      assert_select ".token-list tbody td[data-label='#{label}']", count: 1
+    end
+
+    stylesheet = Rails.root.join("app/assets/stylesheets/application.css").read
+    assert_match(/\.token-list-scroll \{ overflow-x: auto/, stylesheet)
+    assert_match(/\.app-shell \{ overflow-x: clip/, stylesheet)
+  end
+
+  test "the smallest tap targets clear 44px" do
+    stylesheet = Rails.root.join("app/assets/stylesheets/application.css").read
+    # 2rem is 32px, on the Send button a phone user reaches for most.
+    assert_match(/\.mobile-nav \.button \{[^}]*min-height: 2\.75rem/, stylesheet)
+    assert_match(/\.page-heading \.button \{[^}]*min-height: 2\.75rem/, stylesheet)
+    assert_match(/\.mobile-menu summary \{[^}]*height: 2\.75rem[^}]*width: 2\.75rem/, stylesheet)
+    assert_no_match(/min-height: 2rem;[^}]*\}\s*\n\s*\.app-main/, stylesheet)
+  end
+
   test "tokens require a signed-in user" do
     delete session_path
 
