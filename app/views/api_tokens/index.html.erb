@@ -40,30 +40,32 @@
 <% end %>
 
 <% if @tokens.any? %>
-  <table class="token-list">
-    <thead>
-      <tr>
-        <th scope="col">Name</th>
-        <th scope="col">Can do</th>
-        <th scope="col">Last used</th>
-        <th scope="col">Expires</th>
-        <th scope="col"><span class="visually-hidden">Actions</span></th>
-      </tr>
-    </thead>
-    <tbody>
-      <% @tokens.each do |token| %>
+  <div class="token-list-scroll">
+    <table class="token-list">
+      <thead>
         <tr>
-          <th scope="row"><%= token.name %></th>
-          <td><%= token.writable? ? "Read and send" : "Read" %></td>
-          <td><%= token.last_used_at ? "#{time_ago_in_words(token.last_used_at)} ago" : "Never" %></td>
-          <td><%= token.expires_at ? l(token.expires_at.to_date, format: :long) : "Never" %></td>
-          <td class="token-list__actions">
-            <%= button_to "Revoke", api_token_path(token), method: :delete, class: "button button--quiet", form: { data: { turbo_confirm: "Revoke #{token.name}? Anything using it stops working immediately." } } %>
-          </td>
+          <th scope="col">Name</th>
+          <th scope="col">Can do</th>
+          <th scope="col">Last used</th>
+          <th scope="col">Expires</th>
+          <th scope="col"><span class="visually-hidden">Actions</span></th>
         </tr>
-      <% end %>
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+        <% @tokens.each do |token| %>
+          <tr>
+            <th scope="row"><%= token.name %></th>
+            <td data-label="Can do"><%= token.writable? ? "Read and send" : "Read" %></td>
+            <td data-label="Last used"><%= token.last_used_at ? "#{time_ago_in_words(token.last_used_at)} ago" : "Never" %></td>
+            <td data-label="Expires"><%= token.expires_at ? l(token.expires_at.to_date, format: :long) : "Never" %></td>
+            <td class="token-list__actions">
+              <%= button_to "Revoke", api_token_path(token), method: :delete, class: "button button--quiet", form: { data: { turbo_confirm: "Revoke #{token.name}? Anything using it stops working immediately." } } %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
 <% else %>
   <p class="token-empty">You have no tokens yet.</p>
 <% end %>
