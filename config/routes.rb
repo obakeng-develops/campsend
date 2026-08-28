@@ -14,6 +14,7 @@ Rails.application.routes.draw do
     resources :files, only: %i[create destroy], module: :collections
   end
   get "shared", to: "received_sends#index", as: :shared_files
+  get "activity", to: "activity#index", as: :activity
   resources :api_tokens, only: %i[index create destroy], path: "tokens"
 
   resources :sends, only: %i[index new create show edit update destroy] do

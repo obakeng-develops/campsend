@@ -1,0 +1,58 @@
+<% content_for :title, "Activity · Campsend" %>
+
+<div class="page-heading">
+  <div>
+    <p class="eyebrow">Your account</p>
+    <h1>Activity</h1>
+  </div>
+</div>
+
+<p class="activity-intro">What you and anyone holding your links have done, kept for <%= (AuditEvent::RETENTION / 1.year).to_i %> year. Deliveries and files you have since deleted still appear here by name.</p>
+
+<%= form_with url: activity_path, method: :get, class: "activity-filters" do |form| %>
+  <div class="field">
+    <%= form.label :audit_action, "Action" %>
+    <%= form.select :audit_action,
+          @available_actions.map { |action| [ AuditEvent::DESCRIPTIONS.fetch(action, action), action ] },
+          { include_blank: "Everything", selected: @action_filter } %>
+  </div>
+  <div class="field">
+    <%= form.label :from, "From" %>
+    <%= form.date_field :from, value: @from %>
+  </div>
+  <div class="field">
+    <%= form.label :to, "To" %>
+    <%= form.date_field :to, value: @to %>
+  </div>
+  <%= form.submit "Filter", class: "button" %>
+  <% if @action_filter || @from || @to %>
+    <%= link_to "Clear", activity_path, class: "button button--quiet" %>
+  <% end %>
+<% end %>
+
+<% if @events.any? %>
+  <ol class="activity-list">
+    <% @events.each do |event| %>
+      <li class="<%= "activity-item--denied" if event.denied? %>">
+        <div class="activity-item__line">
+          <strong><%= event.description %></strong>
+          <% if event.denied? %><span class="activity-denied">Refused</span><% end %>
+        </div>
+        <p class="activity-item__who"><%= event.actor_description %><%= " · #{event.target_label}" if event.target_label.present? %></p>
+        <% if event.changed_fields.present? %>
+          <p class="activity-item__diff">
+            <% event.changed_fields.each do |field, (before, after)| %>
+              <span><%= field.humanize %>: <%= before.presence || "none" %> → <%= after.presence || "none" %></span>
+            <% end %>
+          </p>
+        <% end %>
+        <time datetime="<%= event.occurred_at.iso8601 %>"><%= event.occurred_at.strftime("%b %-d, %Y at %-I:%M %p") %></time>
+      </li>
+    <% end %>
+  </ol>
+  <% if @events.size == ActivityController::PER_PAGE %>
+    <p class="fine-print">Showing the most recent <%= ActivityController::PER_PAGE %>. Narrow the dates to see further back.</p>
+  <% end %>
+<% else %>
+  <p class="activity-empty">Nothing matches. <%= link_to "Clear the filters", activity_path if @action_filter || @from || @to %></p>
+<% end %>

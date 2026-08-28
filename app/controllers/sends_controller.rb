@@ -53,6 +53,9 @@ class SendsController < ApplicationController
 
   def show
     @revisions = @send.delivery_revisions.includes(files_attachments: :blob).order(number: :desc)
+    # Scoped through the delivery, which set_send already scoped to the caller,
+    # so another user's history is not found rather than forbidden.
+    @audit_events = AuditEvent.for_target(@send).newest_first
     @first_delivery_complete = params[:onboarding] == "complete" && session.delete(:first_delivery_completed_id).to_i == @send.id
   end
 
