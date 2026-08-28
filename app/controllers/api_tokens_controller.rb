@@ -16,6 +16,7 @@ class ApiTokensController < ApplicationController
 
     if @raw_token
       WideEvent.add(api_token_id: @token.id, api_token_scope: @token.scope, token_operation: "created")
+      AuditEvent.record!(action: "api_token.created", target: @token, changed_fields: { "scope" => [ nil, @token.scope ] })
       set_tokens
       # Rendered once, straight into this response. A redirect would have to carry
       # the secret through the flash, which lives in the session cookie.
@@ -29,6 +30,7 @@ class ApiTokensController < ApplicationController
     token = current_user.api_tokens.find(params[:id])
     token.revoke!
     WideEvent.add(api_token_id: token.id, token_operation: "revoked")
+    AuditEvent.record!(action: "api_token.revoked", target: token)
     redirect_to api_tokens_path, notice: "Token revoked. Anything using it stops working now."
   end
 

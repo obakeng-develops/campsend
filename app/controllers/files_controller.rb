@@ -36,7 +36,9 @@ class FilesController < ApplicationController
         return redirect_to files_path, alert: "Remove this file from its collection first."
       end
 
+      filename = @file.blob.filename.to_s
       @file.destroy!
+      AuditEvent.record!(action: "file.removed", changed_fields: { "filename" => [ filename, nil ] })
     end
     redirect_to files_path, notice: "Removed from My Files."
   end

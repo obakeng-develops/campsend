@@ -12,7 +12,11 @@ module DeliveryAccess
 
     def require_delivery_access
       @send = find_delivery
-      head :not_found unless @send.access_active? && delivery_access_granted?(@send)
+      return head :not_found unless @send.access_active? && delivery_access_granted?(@send)
+
+      # Whoever holds the link is acting as the recipient, and the address is
+      # already on the delivery, so nothing new is learned by recording it.
+      Current.actor = @send.recipient_email
     end
 
     def grant_delivery_access(delivery)

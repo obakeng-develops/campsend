@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_24_100000) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_27_120000) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -57,6 +57,26 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_24_100000) do
     t.index ["user_id"], name: "index_api_tokens_on_user_id"
     t.check_constraint "length(trim(name)) BETWEEN 1 AND 60", name: "api_tokens_name_length"
     t.check_constraint "scope IN ('read', 'write')", name: "api_tokens_scope"
+  end
+
+  create_table "audit_events", force: :cascade do |t|
+    t.string "action", null: false
+    t.bigint "actor_id"
+    t.string "actor_label"
+    t.string "actor_type", null: false
+    t.json "changed_fields"
+    t.string "denial_reason"
+    t.datetime "occurred_at", null: false
+    t.string "outcome", null: false
+    t.datetime "recorded_at", null: false
+    t.string "request_id"
+    t.bigint "target_id"
+    t.string "target_label"
+    t.string "target_type"
+    t.index ["actor_type", "actor_id", "occurred_at"], name: "index_audit_events_on_actor_type_and_actor_id_and_occurred_at"
+    t.index ["occurred_at"], name: "index_audit_events_on_occurred_at"
+    t.index ["target_type", "target_id", "occurred_at"], name: "idx_on_target_type_target_id_occurred_at_b7d56dd404"
+    t.check_constraint "outcome IN ('succeeded', 'denied')", name: "audit_events_outcome"
   end
 
   create_table "collection_files", force: :cascade do |t|

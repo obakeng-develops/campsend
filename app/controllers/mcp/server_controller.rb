@@ -49,6 +49,7 @@ module Mcp
       end
 
       def build_server
+        Current.actor = @api_token
         WideEvent.add(user_id: @api_token.user_id, api_token_id: @api_token.id, api_token_scope: @api_token.scope, **Campsend.policy.telemetry_for(@api_token.user))
 
         MCP::Server.new(
