@@ -23,12 +23,48 @@ class AuditEvent < ApplicationRecord
   before_destroy { raise Immutable, "Audit events cannot be deleted" }
 
   scope :newest_first, -> { order(occurred_at: :desc, id: :desc) }
-  scope :for_actor, ->(actor) { where(actor_type: Current.actor_identity_for(actor).first, actor_id: actor.id) }
+  scope :for_account, ->(user) { where(user_id: user.id) }
   scope :for_target, ->(record) { where(target_type: record.class.name, target_id: record.id) }
+  scope :with_action, ->(action) { where(action: action) if action.present? }
+  scope :since, ->(date) { where(occurred_at: date.beginning_of_day..) if date.present? }
+  scope :until_end_of, ->(date) { where(occurred_at: ..date.end_of_day) if date.present? }
+
+  # Sentences rather than dotted identifiers, because the reader is a customer
+  # and the log is only useful if it reads like one.
+  DESCRIPTIONS = {
+    "delivery.created" => "Created a delivery",
+    "delivery.scheduled" => "Scheduled a delivery",
+    "delivery.canceled" => "Canceled a delivery",
+    "delivery.sent" => "Delivery link emailed",
+    "delivery.opened" => "Opened the delivery",
+    "delivery.file_downloaded" => "Downloaded a file",
+    "delivery.access_revoked" => "Revoked recipient access",
+    "delivery.access_rotation_requested" => "Asked for a new delivery link",
+    "delivery.access_rotated" => "New delivery link issued",
+    "delivery.file_replaced" => "Replaced a file",
+    "file.removed" => "Removed a file from My Files",
+    "file.uploaded" => "Uploaded a file",
+    "api_token.created" => "Created an API token",
+    "api_token.revoked" => "Revoked an API token"
+  }.freeze
+
+  def description = DESCRIPTIONS.fetch(action, action.tr("._", " ").capitalize)
+
+  def denied? = outcome == "denied"
+
+  def actor_description
+    case actor_type
+    when "user" then actor_label
+    when "api_token" then "#{actor_label} (API token)"
+    when "recipient" then "#{actor_label} (recipient)"
+    else "Campsend"
+    end
+  end
 
   class << self
     def record!(action:, target: nil, actor: :current, outcome: "succeeded", denial_reason: nil, changed_fields: nil, occurred_at: Time.current)
-      actor_type, actor_id, actor_label = actor == :current ? Current.actor_identity : Current.actor_identity_for(actor)
+      resolved = actor == :current ? Current.actor : actor
+      actor_type, actor_id, actor_label = Current.actor_identity_for(resolved)
 
       create!(
         action: action,
@@ -37,6 +73,7 @@ class AuditEvent < ApplicationRecord
         actor_type: actor_type,
         actor_id: actor_id,
         actor_label: actor_label,
+        user_id: account_for(target, resolved),
         target_type: target&.class&.name,
         target_id: target&.id,
         target_label: label_for(target),
@@ -53,6 +90,17 @@ class AuditEvent < ApplicationRecord
     end
 
     private
+      # A recipient opening a delivery is the sender's event to read, so the
+      # target's owner wins over the actor.
+      def account_for(target, actor)
+        return target.user_id if target.respond_to?(:user_id)
+
+        case actor
+        when User then actor.id
+        when ApiToken then actor.user_id
+        end
+      end
+
       def label_for(target)
         return if target.nil?
         return target.audit_label if target.respond_to?(:audit_label)

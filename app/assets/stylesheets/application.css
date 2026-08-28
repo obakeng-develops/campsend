@@ -450,6 +450,23 @@
 }
 
 @layer utilities {
+  .activity-intro { color: var(--text-secondary); margin-bottom: var(--space-6); max-width: 62ch; }
+  .activity-empty { color: var(--text-tertiary); margin-top: var(--space-8); }
+  .activity-filters { align-items: end; display: flex; flex-wrap: wrap; gap: var(--space-3); margin-bottom: var(--space-8); }
+  .activity-filters .field { gap: var(--space-1); }
+  .activity-filters label { color: var(--text-tertiary); font-size: 0.75rem; }
+  .activity-list { display: grid; list-style: none; margin: 0; padding: 0; }
+  .activity-list > li { border-bottom: 1px solid var(--border-secondary); display: grid; gap: var(--space-1); padding: var(--space-4) 0; }
+  .activity-list > li:last-child { border-bottom: 0; }
+  .activity-item__line { align-items: center; display: flex; gap: var(--space-3); }
+  .activity-item__who { color: var(--text-secondary); font-size: 0.875rem; }
+  .activity-item__diff { color: var(--text-tertiary); display: flex; flex-wrap: wrap; font-size: 0.8125rem; gap: var(--space-3); }
+  .activity-list time { color: var(--text-quaternary); font-size: 0.75rem; font-variant-numeric: tabular-nums; }
+  .activity-denied { background: color-mix(in srgb, var(--negative) 12%, transparent); border-radius: var(--radius-sm); color: var(--negative); font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.04em; padding: 0.1rem 0.4rem; text-transform: uppercase; }
+  .activity-item--denied strong { color: var(--text-secondary); }
+  .delivery-history { border-top: 1px solid var(--border-secondary); margin-top: var(--space-10); padding-top: var(--space-8); }
+  .delivery-history h2 { font-size: 1.125rem; letter-spacing: -0.02em; margin-bottom: var(--space-2); }
+
   .token-intro { color: var(--text-secondary); margin-bottom: var(--space-6); max-width: 60ch; }
   .token-empty { color: var(--text-tertiary); margin-top: var(--space-6); }
   .token-reveal { background: var(--bg-primary); border: 1px solid var(--border-primary); border-radius: var(--radius-lg); box-shadow: var(--card-shadow); margin-bottom: var(--space-6); padding: var(--space-5); }
