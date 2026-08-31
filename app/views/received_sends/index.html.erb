@@ -9,34 +9,16 @@
 
 <% if @sends.any? %>
   <div class="send-stream">
-    <% @sends.each do |send_record| %>
-      <%= link_to delivery_path(public_id: send_record.delivery_identifier), class: "send-card" do %>
-        <div class="send-card__files <%= "send-card__files--stacked" if send_record.files.size > 1 %>">
-          <% primary_file = send_record.files.first %>
-          <% if previewable_image?(primary_file) %>
-            <%= image_tag delivery_file_path(public_id: send_record.delivery_identifier, id: primary_file.id), alt: "", class: "send-card__preview" %>
-          <% else %>
-            <div class="file-glyph"><span><%= file_kind(primary_file) %></span></div>
-          <% end %>
-          <% if send_record.files.size > 1 %>
-            <span class="file-count">+<%= send_record.files.size - 1 %></span>
-          <% end %>
-        </div>
-
-        <div class="send-card__body">
-          <div class="send-card__topline">
-            <strong><%= primary_file.filename %></strong>
-            <time datetime="<%= send_record.created_at.iso8601 %>"><%= time_ago_in_words(send_record.created_at) %> ago</time>
-          </div>
-          <% if send_record.message.present? %>
-            <p class="send-card__message"><%= truncate(send_record.message, length: 120) %></p>
-          <% end %>
+    <% @sends.each do |delivery| %>
+      <% primary_file = delivery.files.first %>
+      <%= link_to delivery_path(public_id: delivery.delivery_identifier), class: "send-card" do %>
+        <%= render layout: "shared/delivery_summary", locals: { delivery:, primary_file:, preview_url: delivery_file_path(public_id: delivery.delivery_identifier, id: primary_file.id) } do %>
           <div class="relationship-row">
-            <span class="avatar" aria-hidden="true"><%= send_record.user.email_address.first %></span>
-            <span>From <%= send_record.user.email_address %></span>
-            <span class="delivery-expiry">Until <%= send_record.access_expires_at.strftime("%b %-d") %></span>
+            <span class="avatar" aria-hidden="true"><%= delivery.user.email_address.first %></span>
+            <span>From <%= delivery.user.email_address %></span>
+            <span class="delivery-expiry">Until <%= delivery.access_expires_at.strftime("%b %-d") %></span>
           </div>
-        </div>
+        <% end %>
       <% end %>
     <% end %>
   </div>

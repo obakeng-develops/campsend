@@ -32,23 +32,8 @@
 
 <% if @events.any? %>
   <ol class="activity-list">
-    <% @events.each do |event| %>
-      <li class="<%= "activity-item--denied" if event.denied? %>">
-        <div class="activity-item__line">
-          <strong><%= event.description %></strong>
-          <% if event.denied? %><span class="activity-denied">Refused</span><% end %>
-        </div>
-        <p class="activity-item__who"><%= event.actor_description %><%= " · #{event.target_label}" if event.target_label.present? %></p>
-        <% if event.changed_fields.present? %>
-          <p class="activity-item__diff">
-            <% event.changed_fields.each do |field, (before, after)| %>
-              <span><%= field.humanize %>: <%= before.presence || "none" %> → <%= after.presence || "none" %></span>
-            <% end %>
-          </p>
-        <% end %>
-        <time datetime="<%= event.occurred_at.iso8601 %>"><%= event.occurred_at.strftime("%b %-d, %Y at %-I:%M %p") %></time>
-      </li>
-    <% end %>
+    <%= render partial: "shared/activity_event", collection: @events, as: :event,
+          locals: { show_target: true, date_format: "%b %-d, %Y at %-I:%M %p" } %>
   </ol>
   <% if @events.size == ActivityController::PER_PAGE %>
     <p class="fine-print">Showing the most recent <%= ActivityController::PER_PAGE %>. Narrow the dates to see further back.</p>
