@@ -21,6 +21,7 @@ class WideEventMiddleware
     if !skipped && WideEvent.payload
       WideEvent.add(route: route_pattern(request), status: status)
       WideEvent.add(outcome: outcome(status)) unless WideEvent.payload.key?(:outcome)
+      WideEvent.add(request_accept: request.get_header("HTTP_ACCEPT").to_s.truncate(120)) if status >= 400
     end
     [ status, headers, body ]
   rescue => error
@@ -29,6 +30,10 @@ class WideEventMiddleware
     # indistinguishable from faults in the one place used to tell them apart.
     status = ActionDispatch::ExceptionWrapper.status_code_for_exception(error.class.name)
     WideEvent.add(status: status, outcome: outcome(status))
+    # A 406 or a 415 is a content-negotiation refusal, and the row is unreadable
+    # without the header that caused it. Only on failures, because it says
+    # nothing on the requests that worked.
+    WideEvent.add(request_accept: request.get_header("HTTP_ACCEPT").to_s.truncate(120)) if status >= 400
     WideEvent.add_error(error)
     raise
   ensure
