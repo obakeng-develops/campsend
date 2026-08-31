@@ -8,7 +8,7 @@ class Api::V1::GoogleDriveImportsController < ApplicationController
     return render json: { error: "Choose no more than #{Send::MAX_FILES} files." }, status: :unprocessable_content if files.size > Send::MAX_FILES
     return render json: { error: "Google access expired. Open Drive and try again." }, status: :unprocessable_content if token.blank? || token.bytesize > 4096
 
-    encrypted_token = GoogleDriveImportJob.encrypt_access_token(token)
+    encrypted_token = GoogleDrive::Token.encrypt(token)
     imports = GoogleDriveImport.transaction do
       files.map do |file|
         current_user.google_drive_imports.create!(
