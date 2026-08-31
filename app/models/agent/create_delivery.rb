@@ -1,4 +1,4 @@
-class CreateDeliveryTool < MCP::Tool
+class Agent::CreateDelivery < MCP::Tool
   tool_name "create_delivery"
   description "Send files you have already uploaded to one recipient. Campsend emails them a link that expires after 30 days."
   # Declared so a client knows this one changes state and can ask before calling it.
@@ -21,21 +21,21 @@ class CreateDeliveryTool < MCP::Tool
   class << self
     def call(recipient_email:, file_ids:, server_context:, message: nil, slug: nil, scheduled_at: nil)
       token = server_context.fetch(:api_token)
-      return McpTool.failure("This token can only read. Create a token with the write scope to send deliveries.") unless token.writable?
+      return Agent::Response.failure("This token can only read. Create a token with the write scope to send deliveries.") unless token.writable?
 
       user = server_context.fetch(:user)
       blobs = owned_blobs(user, file_ids)
-      return McpTool.failure("Some of those files are not yours, or do not exist.") unless blobs.size == Array(file_ids).uniq.size
+      return Agent::Response.failure("Some of those files are not yours, or do not exist.") unless blobs.size == Array(file_ids).uniq.size
 
       delivery = user.sends.new(recipient_email: recipient_email, message: message, slug: slug, scheduled_at: parse_time(scheduled_at), files: blobs)
 
       # Send#deliver! is the one create path. A policy denial arrives on the
       # record as a base error, the same as a validation failure.
-      return McpTool.failure(delivery.errors.full_messages.to_sentence) unless delivery.deliver!
+      return Agent::Response.failure(delivery.errors.full_messages.to_sentence) unless delivery.deliver!
 
       WideEvent.add(delivery_id: delivery.id, delivery_operation: delivery.scheduled? ? "scheduled" : "created", file_count: blobs.size)
 
-      McpTool.ok(DeliveryPresenter.detail(delivery.reload))
+      Agent::Response.ok(Agent::DeliveryPresenter.detail(delivery.reload))
     end
 
     private

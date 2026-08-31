@@ -1,4 +1,4 @@
-class ListDeliveriesTool < MCP::Tool
+class Agent::ListDeliveries < MCP::Tool
   DEFAULT_LIMIT = 25
   MAX_LIMIT = 100
 
@@ -23,7 +23,7 @@ class ListDeliveriesTool < MCP::Tool
       deliveries = deliveries.to_a
       deliveries = deliveries.select { |delivery| delivery.display_status == status } if status.present?
 
-      McpTool.ok(deliveries: deliveries.first(limit).map { |delivery| DeliveryPresenter.summary(delivery) })
+      Agent::Response.ok(deliveries: deliveries.first(limit).map { |delivery| Agent::DeliveryPresenter.summary(delivery) })
     end
   end
 end

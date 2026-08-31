@@ -3,7 +3,7 @@
 # Access tokens, token digests and signed storage URLs are never included. A
 # caller that wants a file downloads it through the browser, so nothing here
 # hands out a way to reach bytes.
-module DeliveryPresenter
+module Agent::DeliveryPresenter
   module_function
 
   def summary(delivery)
