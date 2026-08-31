@@ -4,14 +4,13 @@ class GoogleDriveImportJobTest < ActiveSupport::TestCase
   setup do
     @user = User.create!(email_address: "sender@example.com")
     @drive_import = @user.google_drive_imports.create!(google_file_id: "drive-file-123", filename: "Report.pdf")
-    @token = GoogleDriveImportJob.encrypt_access_token("short-lived-token")
+    @token = GoogleDrive::Token.encrypt("short-lived-token")
   end
 
   test "stores a verified Drive snapshot in My Files" do
     content = "private report"
-    job = stubbed_job(content:)
 
-    job.perform(@drive_import, @token)
+    perform(client: stubbed_client(content:))
 
     assert_equal "completed", @drive_import.reload.status
     assert_equal [ @drive_import.blob_id ], @user.files.blobs.ids
@@ -20,9 +19,7 @@ class GoogleDriveImportJobTest < ActiveSupport::TestCase
   end
 
   test "rejects native Google Workspace documents" do
-    job = stubbed_job(metadata: metadata.merge("mimeType" => "application/vnd.google-apps.document", "size" => nil))
-
-    job.perform(@drive_import, @token)
+    perform(client: stubbed_client(metadata: metadata.merge("mimeType" => "application/vnd.google-apps.document", "size" => nil)))
 
     assert_equal "failed", @drive_import.reload.status
     assert_match "aren't supported", @drive_import.error
@@ -30,12 +27,12 @@ class GoogleDriveImportJobTest < ActiveSupport::TestCase
   end
 
   test "releases reserved storage when verification fails" do
-    job = stubbed_job
+    job = GoogleDriveImportJob.new
     job.define_singleton_method(:download) do |*, **|
       raise GoogleDriveImportJob::PermanentError, "Google Drive changed the file while it was importing."
     end
 
-    job.perform(@drive_import, @token)
+    job.perform(@drive_import, @token, client: stubbed_client)
 
     assert_equal "failed", @drive_import.reload.status
     assert_nil @drive_import.blob
@@ -43,34 +40,32 @@ class GoogleDriveImportJobTest < ActiveSupport::TestCase
   end
 
   test "expires queued Google access tokens" do
-    expired_token = travel_to(2.hours.ago) { GoogleDriveImportJob.encrypt_access_token("expired") }
+    expired_token = travel_to(2.hours.ago) { GoogleDrive::Token.encrypt("expired") }
 
-    stubbed_job.perform(@drive_import, expired_token)
+    perform(client: stubbed_client, encrypted_token: expired_token)
 
     assert_equal "failed", @drive_import.reload.status
     assert_match "access expired", @drive_import.error
   end
 
-  test "allows redirects only to Google download hosts" do
-    job = GoogleDriveImportJob.new
-
-    assert job.send(:trusted_download_host?, "content.googleapis.com")
-    assert job.send(:trusted_download_host?, "download.googleusercontent.com")
-    assert_not job.send(:trusted_download_host?, "example.com")
-  end
-
   private
-    def stubbed_job(content: "private report", metadata: nil)
+    def perform(client:, encrypted_token: @token)
+      GoogleDriveImportJob.new.perform(@drive_import, encrypted_token, client: client)
+    end
+
+    # A stand-in for GoogleDrive::Client. The job takes one as a keyword, so the
+    # transport can be replaced without reaching into the job's privates.
+    def stubbed_client(content: "private report", metadata: nil)
       file_metadata = metadata || self.metadata.merge(
         "size" => content.bytesize.to_s,
         "md5Checksum" => Digest::MD5.hexdigest(content)
       )
-      job = GoogleDriveImportJob.new
-      job.define_singleton_method(:fetch_metadata) { |*, **| file_metadata }
-      job.define_singleton_method(:stream_request) do |*, **, &block|
+      client = Object.new
+      client.define_singleton_method(:metadata) { |*, **| file_metadata }
+      client.define_singleton_method(:download) do |*, **, &block|
         content.bytes.each_slice(4) { |bytes| block.call(bytes.pack("C*")) }
       end
-      job
+      client
     end
 
     def metadata
