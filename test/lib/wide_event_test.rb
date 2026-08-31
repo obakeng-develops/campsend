@@ -47,6 +47,21 @@ class WideEventTest < ActionDispatch::IntegrationTest
     assert_equal "client_error", events.first["outcome"]
   end
 
+  test "a failure records the Accept header, and a success does not" do
+    # A content-negotiation refusal is unreadable without the header that caused
+    # it: Rails renders one as a 406 with nothing else in the row to explain it.
+    refused = capture_wide_events { get new_session_path, headers: { "Accept" => "application/pdf" } }
+
+    assert_equal 406, refused.first["status"]
+    assert_equal "application/pdf", refused.first["request_accept"]
+
+    # It says nothing on a request that worked, so it stays off those rows.
+    served = capture_wide_events { get new_session_path, headers: { "Accept" => "text/html" } }
+
+    assert_equal 200, served.first["status"]
+    assert_nil served.first["request_accept"]
+  end
+
   test "jobs emit one structured event with outcome" do
     user = User.create!(email_address: "sender@example.com")
     delivery = user.sends.new(recipient_email: "sam@example.com")
