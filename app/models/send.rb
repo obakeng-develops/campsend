@@ -24,7 +24,44 @@ class Send < ApplicationRecord
     recipient_email.split("@").first.tr("._-", " ").titleize
   end
 
+  # Save this delivery and start it on its way: the policy admits it under a
+  # user lock, the files are retained in the sender's library, and the mail job
+  # is enqueued.
+  #
+  # Returns false and leaves errors on the record, the way save does. It lives
+  # here because there are two callers, the composer and the MCP tool, and they
+  # previously kept a copy each.
+  def deliver!
+    return false unless collection ? admit_from_collection : admit_and_save
+
+    user.retain_files(files.blobs.to_a)
+    DeliveryEmailJob.enqueue(self)
+    true
+  end
+
   private
+    def admit_from_collection
+      collection.with_lock do
+        raise ActiveRecord::RecordNotFound if collection.removed_at?
+
+        self.files = collection.blobs.to_a
+        admit_and_save
+      end
+    end
+
+    def admit_and_save
+      user.with_lock do
+        Campsend.policy.admit_delivery(user: user) { save }
+      rescue Campsend::Policy::Denied => error
+        WideEvent.add(outcome: error.outcome)
+        # A denial is the highest-signal row in the table, and it is the one
+        # nothing else in the product keeps.
+        AuditEvent.record!(action: "delivery.created", outcome: "denied", denial_reason: error.outcome)
+        errors.add(:base, error.message)
+        false
+      end
+    end
+
     def collection_belongs_to_sender
       errors.add(:collection, "must belong to you") if collection && collection.user_id != user_id
     end

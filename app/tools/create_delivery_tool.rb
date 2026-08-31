@@ -29,15 +29,10 @@ class CreateDeliveryTool < MCP::Tool
 
       delivery = user.sends.new(recipient_email: recipient_email, message: message, slug: slug, scheduled_at: parse_time(scheduled_at), files: blobs)
 
-      # The same path SendsController#create takes, rather than a second one that
-      # could drift from it: the policy admits the save, then files are retained
-      # and the email is enqueued.
-      saved, denial = admit(user, delivery)
-      return McpTool.failure(denial.message) if denial
-      return McpTool.failure(delivery.errors.full_messages.to_sentence) unless saved
+      # Send#deliver! is the one create path. A policy denial arrives on the
+      # record as a base error, the same as a validation failure.
+      return McpTool.failure(delivery.errors.full_messages.to_sentence) unless delivery.deliver!
 
-      user.retain_files(delivery.files.blobs.to_a)
-      DeliveryEmailJob.enqueue(delivery)
       WideEvent.add(delivery_id: delivery.id, delivery_operation: delivery.scheduled? ? "scheduled" : "created", file_count: blobs.size)
 
       McpTool.ok(DeliveryPresenter.detail(delivery.reload))
@@ -49,15 +44,6 @@ class CreateDeliveryTool < MCP::Tool
         return [] if ids.empty?
 
         user.uploaded_blobs.where(id: ids).to_a
-      end
-
-      def admit(user, delivery)
-        user.with_lock do
-          [ Campsend.policy.admit_delivery(user: user) { delivery.save }, nil ]
-        rescue Campsend::Policy::Denied => error
-          WideEvent.add(outcome: error.outcome)
-          [ false, error ]
-        end
       end
 
       def parse_time(value)

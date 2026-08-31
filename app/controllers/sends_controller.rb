@@ -35,12 +35,10 @@ class SendsController < ApplicationController
       return render :new, status: :unprocessable_entity
     end
 
-    if save_send
+    if @send.deliver!
       blobs = @send.files.blobs.to_a
       onboarding_duration_ms = ((Time.current.to_i - session.delete(:send_intent_started_at).to_i) * 1000 if @first_delivery && session[:send_intent_started_at])
       WideEvent.add(delivery_id: @send.id, delivery_operation: @send.scheduled? ? "scheduled" : "created", scheduled_at: @send.scheduled_at&.iso8601(3), file_count: blobs.size, send_bytes: blobs.sum(&:byte_size), first_delivery: @first_delivery, onboarding_event: ("first_delivery_completed" if @first_delivery), onboarding_duration_ms:)
-      current_user.retain_files(blobs)
-      DeliveryEmailJob.enqueue(@send)
       notice = @send.scheduled? ? "Delivery scheduled." : "We’re emailing the delivery link to #{@send.recipient_email}."
       session[:first_delivery_completed_id] = @send.id if @first_delivery
       redirect_to send_path(@send, onboarding: ("complete" if @first_delivery)), notice: (notice unless @first_delivery)
@@ -134,33 +132,6 @@ class SendsController < ApplicationController
 
     def schedule_conversion_missing?
       params.dig(:send, :scheduled_local).present? && params.dig(:send, :schedule_synced) != "1"
-    end
-
-    def save_send
-      if @collection
-        return @collection.with_lock do
-          raise ActiveRecord::RecordNotFound if @collection.removed_at?
-
-          @send.files = @collection.blobs.to_a
-          admit_delivery
-        end
-      end
-
-      admit_delivery
-    end
-
-    def admit_delivery
-      current_user.with_lock do
-        @first_delivery = !current_user.sends.exists?
-        Campsend.policy.admit_delivery(user: current_user) { @send.save }
-      rescue Campsend::Policy::Denied => error
-        WideEvent.add(outcome: error.outcome)
-        # A denial is the highest-signal row in the table, and it is the one
-        # nothing else in the product keeps.
-        AuditEvent.record!(action: "delivery.created", outcome: "denied", denial_reason: error.outcome)
-        @send.errors.add(:base, error.message)
-        false
-      end
     end
 
     def set_send_sources
