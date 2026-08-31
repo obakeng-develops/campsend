@@ -433,6 +433,45 @@ class SendFlowTest < ActionDispatch::IntegrationTest
     assert_response :unsupported_media_type
   end
 
+  test "the sent and received lists render the same delivery card" do
+    perform_enqueued_jobs { create_send }
+
+    other = User.create!(email_address: "other@example.com")
+    incoming = other.sends.new(recipient_email: @user.email_address, message: "Yours.", files: [ create_uploaded_blob(other, content: "x", filename: "x.txt") ])
+    incoming.issue_access_token
+    incoming.save!
+    perform_enqueued_jobs { incoming.record_event!("sent") }
+
+    # Both pages render shared/_delivery_summary. The structure below is what
+    # the CSS hangs off, and an inlined copy that dropped send-card__body would
+    # still look right in a selector assertion made against one page alone.
+    [ sends_path, shared_files_path ].each do |path|
+      get path
+
+      assert_response :success
+      assert_select "a.send-card", count: 1, message: "#{path} rendered no delivery card"
+      assert_select "a.send-card > .send-card__files", count: 1
+      assert_select "a.send-card > .send-card__body > .send-card__topline strong", count: 1
+      assert_select "a.send-card > .send-card__body > .relationship-row", count: 1
+    end
+  end
+
+  test "a delivery's history and the activity page render the same row" do
+    delivery = nil
+    perform_enqueued_jobs { delivery = create_send }
+    post revoke_access_send_path(delivery)
+
+    # Same partial, two callers. The delivery page omits the target, because the
+    # page is the target, and drops the year.
+    get send_path(delivery)
+    assert_select ".delivery-history .activity-list > li > .activity-item__line strong", minimum: 1
+    assert_select ".delivery-history .activity-list time", text: /\A\w+ \d+ at /
+
+    get activity_path
+    assert_select ".activity-list > li > .activity-item__line strong", minimum: 1
+    assert_select ".activity-list time", text: /, \d{4} at /
+  end
+
   private
     def sign_in_as(user)
       login_token, raw_token = LoginToken.issue_for(user)

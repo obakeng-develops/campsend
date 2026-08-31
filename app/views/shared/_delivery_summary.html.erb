@@ -1,0 +1,24 @@
+<%# The interior of a delivery card. Identical whether you sent it or received
+    it; only the link around it and the relationship line inside it differ, so
+    the caller supplies the link and yields the line. %>
+<div class="send-card__files <%= "send-card__files--stacked" if delivery.files.size > 1 %>">
+  <% if previewable_image?(primary_file) %>
+    <%= image_tag preview_url, alt: "", class: "send-card__preview" %>
+  <% else %>
+    <div class="file-glyph"><span><%= file_kind(primary_file) %></span></div>
+  <% end %>
+  <% if delivery.files.size > 1 %>
+    <span class="file-count">+<%= delivery.files.size - 1 %></span>
+  <% end %>
+</div>
+
+<div class="send-card__body">
+  <div class="send-card__topline">
+    <strong><%= primary_file.filename %></strong>
+    <time datetime="<%= delivery.created_at.iso8601 %>"><%= time_ago_in_words(delivery.created_at) %> ago</time>
+  </div>
+  <% if delivery.message.present? %>
+    <p class="send-card__message"><%= truncate(delivery.message, length: 120) %></p>
+  <% end %>
+  <%= yield %>
+</div>

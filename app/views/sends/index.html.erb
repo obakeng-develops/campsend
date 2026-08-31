@@ -12,35 +12,17 @@
 
 <% if @sends.any? %>
   <div class="send-stream">
-    <% @sends.each do |send_record| %>
-      <%= link_to send_path(send_record), class: "send-card" do %>
-        <div class="send-card__files <%= "send-card__files--stacked" if send_record.files.size > 1 %>">
-          <% primary_file = send_record.files.first %>
-          <% if previewable_image?(primary_file) %>
-            <%= image_tag send_file_path(send_record, primary_file), alt: "", class: "send-card__preview" %>
-          <% else %>
-            <div class="file-glyph"><span><%= file_kind(primary_file) %></span></div>
-          <% end %>
-          <% if send_record.files.size > 1 %>
-            <span class="file-count">+<%= send_record.files.size - 1 %></span>
-          <% end %>
-        </div>
-
-        <div class="send-card__body">
-          <div class="send-card__topline">
-            <strong><%= primary_file.filename %></strong>
-            <time datetime="<%= send_record.created_at.iso8601 %>"><%= time_ago_in_words(send_record.created_at) %> ago</time>
-          </div>
-          <% if send_record.message.present? %>
-            <p class="send-card__message"><%= truncate(send_record.message, length: 120) %></p>
-          <% end %>
+    <% @sends.each do |delivery| %>
+      <% primary_file = delivery.files.first %>
+      <%= link_to send_path(delivery), class: "send-card" do %>
+        <%= render layout: "shared/delivery_summary", locals: { delivery:, primary_file:, preview_url: send_file_path(delivery, primary_file) } do %>
           <div class="relationship-row">
-            <span class="avatar" aria-hidden="true"><%= send_record.recipient_name.first %></span>
-            <span><%= status_sentence(send_record) %></span>
-            <% if send_record.access_active? %><span class="delivery-expiry">Until <%= send_record.access_expires_at.strftime("%b %-d") %></span><% end %>
-            <span class="status-dot status-dot--<%= send_record.display_status %>" aria-hidden="true"></span>
+            <span class="avatar" aria-hidden="true"><%= delivery.recipient_name.first %></span>
+            <span><%= status_sentence(delivery) %></span>
+            <% if delivery.access_active? %><span class="delivery-expiry">Until <%= delivery.access_expires_at.strftime("%b %-d") %></span><% end %>
+            <span class="status-dot status-dot--<%= delivery.display_status %>" aria-hidden="true"></span>
           </div>
-        </div>
+        <% end %>
       <% end %>
     <% end %>
   </div>
