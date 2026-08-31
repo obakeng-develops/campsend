@@ -2,7 +2,7 @@
 #
 # Content is the JSON text an older client reads; structured_content is the same
 # payload for a client that understands it.
-module McpTool
+module Agent::Response
   module_function
 
   def ok(payload)

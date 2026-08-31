@@ -1,4 +1,4 @@
-class GetDeliveryTool < MCP::Tool
+class Agent::GetDelivery < MCP::Tool
   tool_name "get_delivery"
   description "Get one delivery you sent, with its files and the times it was sent, first opened and first downloaded."
   annotations(read_only_hint: true, destructive_hint: false, idempotent_hint: true)
@@ -19,9 +19,9 @@ class GetDeliveryTool < MCP::Tool
                  user.sends.with_attached_files.includes(:send_events)
                      .find_by(public_id: delivery_identifier)
 
-      return McpTool.failure("No delivery with that identifier.") unless delivery
+      return Agent::Response.failure("No delivery with that identifier.") unless delivery
 
-      McpTool.ok(DeliveryPresenter.detail(delivery))
+      Agent::Response.ok(Agent::DeliveryPresenter.detail(delivery))
     end
   end
 end
