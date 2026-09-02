@@ -59,7 +59,7 @@
           <span>or choose from your computer</span>
           <small>Any file type. Up to <%= Send::MAX_FILES %> files, <%= Send.human_max_size_for(current_user) %> per delivery.</small>
           <% if (storage = Campsend.policy.storage_usage_for(current_user)) %>
-            <small>Storage: <%= number_to_human_size(storage[:used]) %> of <%= number_to_human_size(storage[:limit]) %> used. Sent files stay in My Files.</small>
+            <small>Storage: <%= number_to_human_size(storage[:used]) %> of <%= number_to_human_size(storage[:limit]) %> used. <%= storage[:note] || "Sent files stay in My Files." %></small>
           <% end %>
         </div>
         <div class="selected-state" data-file-drop-target="state" hidden>
