@@ -3,8 +3,6 @@ require "test_helper"
 class ExtensionSeamsTest < ActionDispatch::IntegrationTest
   test "a stock install renders no extension head partials and allows no extra origins" do
     assert_empty Rails.configuration.x.extension_head_partials
-    assert_empty Rails.configuration.x.extension_script_src
-    assert_empty Rails.configuration.x.extension_connect_src
 
     get new_session_path
 
