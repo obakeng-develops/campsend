@@ -7,6 +7,17 @@ class Send < ApplicationRecord
 
   include Access, Events, Publication, Revisions, Slug
 
+  # The ceiling for one delivery. MAX_SEND_SIZE is the ungated default; a
+  # distribution that sells plans raises it through the policy. A nil user
+  # resolves to the strictest limit, which is what an unsaved revision wants.
+  def self.max_size_for(user)
+    Campsend.policy.max_send_size_for(user)
+  end
+
+  def self.human_max_size_for(user)
+    ActiveSupport::NumberHelper.number_to_human_size(max_size_for(user))
+  end
+
   belongs_to :user
   belongs_to :collection, optional: true
   has_secure_token :public_id

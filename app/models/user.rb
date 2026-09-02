@@ -24,7 +24,7 @@ class User < ApplicationRecord
     with_lock do
       byte_size = attributes.fetch(:byte_size).to_i
       raise InvalidUploadSize, "File size cannot be negative." if byte_size.negative?
-      raise UploadTooLarge, "File exceeds Campsend's 2 GB limit." if byte_size > Send::MAX_SEND_SIZE
+      raise UploadTooLarge, "File exceeds Campsend's #{Send.human_max_size_for(self)} limit." if byte_size > Send.max_size_for(self)
 
       Campsend.policy.admit_storage(user: self, byte_size:) do
         key = "#{Campsend.policy.storage_key_prefix_for(user: self)}/#{ActiveStorage::Blob.generate_unique_secure_token}"

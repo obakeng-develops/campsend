@@ -17,6 +17,17 @@ module Campsend
       yield
     end
 
+    # How much one delivery may hold. Ungated here, so a self-hosted install
+    # keeps whatever Send::MAX_SEND_SIZE says. A distribution that sells plans
+    # overrides it per plan.
+    #
+    # Above roughly 5 GB the browser cannot upload at all: R2 and S3 cap a
+    # single presigned PUT there, and Active Storage's direct upload issues
+    # exactly one. Raising this past that needs multipart upload first.
+    def max_send_size_for(user)
+      Send::MAX_SEND_SIZE
+    end
+
     def storage_service_name_for(user:)
     end
 

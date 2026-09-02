@@ -3,8 +3,8 @@ class Api::V1::DirectUploadsController < ActiveStorage::DirectUploadsController
   rate_limit to: 60, within: 1.hour, by: -> { current_user&.id || request.remote_ip }
 
   def create
-    if blob_args[:byte_size].to_i > Send::MAX_SEND_SIZE
-      return render json: { error: "File exceeds Campsend's 2 GB limit." }, status: :content_too_large
+    if blob_args[:byte_size].to_i > Send.max_size_for(current_user)
+      return render json: { error: "File exceeds Campsend's #{Send.human_max_size_for(current_user)} limit." }, status: :content_too_large
     end
 
     blob = current_user.reserve_blob!(**blob_args)
