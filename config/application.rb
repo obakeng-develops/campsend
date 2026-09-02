@@ -30,6 +30,9 @@ module Campsend
     config.x.recipient_delivery_header_partial = "shared/wordmark"
     config.x.sidebar_navigation_partials = []
     config.x.extension_stylesheets = []
+    config.x.extension_head_partials = []
+    config.x.extension_script_src = []
+    config.x.extension_connect_src = []
     config.x.recipient_delivery_partials = []
     config.x.sender_delivery_partials = []
 
