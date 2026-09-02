@@ -1,11 +1,4 @@
-# Presigns, completes and aborts a multipart upload the browser is running.
-#
-# The reservation that started the upload lives in Api::V1::DirectUploadsController,
-# which is where the size and storage limits are enforced. Nothing here reserves
-# anything, so nothing here needs to ask the policy again.
 class Api::V1::MultipartUploadsController < ApplicationController
-  # A window at a time. Wide enough that the browser is not asking constantly,
-  # narrow enough that URLs cannot go stale waiting their turn.
   MAX_PARTS_PER_REQUEST = 100
 
   rate_limit to: 600, within: 1.hour, by: -> { current_user.id }
@@ -16,9 +9,6 @@ class Api::V1::MultipartUploadsController < ApplicationController
     unless numbers.size.between?(1, MAX_PARTS_PER_REQUEST)
       return render json: { error: "Ask for between 1 and #{MAX_PARTS_PER_REQUEST} parts at a time." }, status: :bad_request
     end
-    # Refused rather than filtered. A client that asks for a part that cannot
-    # exist has miscounted, and handing back a short list would hide that until
-    # the upload failed to assemble.
     unless numbers.all? { |number| number.between?(1, @upload.part_count) }
       return render json: { error: "This upload has #{@upload.part_count} parts." }, status: :bad_request
     end
@@ -50,8 +40,7 @@ class Api::V1::MultipartUploadsController < ApplicationController
       render json: { error: "Upload not found." }, status: :not_found
     end
 
-    # Order matters to S3: the parts must arrive sorted by part number or the
-    # object assembles wrong.
+    # S3 assembles in part-number order.
     def completed_parts
       Array(params[:parts]).map { |part|
         { part_number: part[:part_number].to_i, etag: part[:etag].to_s }

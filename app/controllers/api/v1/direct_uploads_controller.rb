@@ -20,9 +20,6 @@ class Api::V1::DirectUploadsController < ActiveStorage::DirectUploadsController
   end
 
   private
-    # A file too big for one PUT gets the multipart plan instead. The single-PUT
-    # url that direct_upload_json builds is still in the response and still
-    # valid; the client ignores it when this key is present.
     def multipart_json(blob)
       return {} unless MultipartUpload.wanted_for?(blob.byte_size, blob.service)
 
