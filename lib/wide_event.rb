@@ -28,6 +28,9 @@ class WideEvent < ActiveSupport::CurrentAttributes
 
       event = payload.merge(fields).compact
       Rails.logger.info JSON.generate(event)
+      # The log line is the record. A sink is somewhere durable to put a copy,
+      # and a broken one must never take a request down with it.
+      Rails.configuration.x.wide_event_sink&.call(event)
     rescue StandardError
       nil
     ensure

@@ -126,7 +126,52 @@ class WideEventTest < ActionDispatch::IntegrationTest
     assert_nil event["exception_message"]
   end
 
+  test "a sink receives a copy of every event, and there is none by default" do
+    assert_nil Rails.configuration.x.wide_event_sink
+
+    shipped = []
+    with_sink(->(event) { shipped << event }) do
+      user = User.create!(email_address: "sender@example.com")
+      sign_in_as(user)
+      get files_path
+    end
+
+    assert_operator shipped.size, :>=, 1
+    # Symbol keys, unlike the log line, which is JSON by the time anyone reads it.
+    assert_equal :request, shipped.last[:event]
+    assert_equal "/files", shipped.last[:path]
+  end
+
+  test "a sink that raises does not take the request with it" do
+    with_sink(->(_event) { raise "the sink is down" }) do
+      user = User.create!(email_address: "sender@example.com")
+      sign_in_as(user)
+      get files_path
+    end
+
+    assert_response :success
+  end
+
+  test "the log line is written even when the sink fails" do
+    events = capture_wide_events do
+      with_sink(->(_event) { raise "the sink is down" }) do
+        user = User.create!(email_address: "sender@example.com")
+        sign_in_as(user)
+        get files_path
+      end
+    end
+
+    assert_equal "/files", events.last["path"]
+  end
+
   private
+    def with_sink(sink)
+      Rails.configuration.x.wide_event_sink = sink
+      yield
+    ensure
+      Rails.configuration.x.wide_event_sink = nil
+    end
+
     def capture_wide_events(&block)
       output = StringIO.new
       original_logger = Rails.logger
