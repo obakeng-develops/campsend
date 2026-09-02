@@ -4,6 +4,7 @@ class MultipartUploadTest < ActiveSupport::TestCase
   setup do
     @user = User.create!(email_address: "sender@example.com")
     @service = ActiveStorage::Blob.services.fetch("s3_test")
+    @requests_before = @service.client.client.api_requests.size
   end
 
   test "only an S3-backed service can do this, so Disk keeps the single PUT path" do
@@ -68,6 +69,36 @@ class MultipartUploadTest < ActiveSupport::TestCase
     assert_not ActiveStorage::Blob.exists?(reserved.id)
   end
 
+  test "an upload left in flight past its blob's life is aborted" do
+    stub(:list_multipart_uploads, {
+      uploads: [
+        { key: "stale", upload_id: "u1", initiated: 3.days.ago },
+        { key: "fresh", upload_id: "u2", initiated: 10.minutes.ago }
+      ],
+      is_truncated: false
+    })
+    stub(:abort_multipart_upload, {})
+
+    assert_equal 1, MultipartUpload.abort_abandoned!(@service)
+    assert_equal [ "stale" ], aborted_keys
+  end
+
+  test "reconciliation walks past the first page of results" do
+    pages = [
+      { uploads: [ { key: "one", upload_id: "u1", initiated: 3.days.ago } ], is_truncated: true, next_key_marker: "one", next_upload_id_marker: "u1" },
+      { uploads: [ { key: "two", upload_id: "u2", initiated: 3.days.ago } ], is_truncated: false }
+    ]
+    stub(:list_multipart_uploads, pages)
+    stub(:abort_multipart_upload, {})
+
+    assert_equal 2, MultipartUpload.abort_abandoned!(@service)
+    assert_equal [ "one", "two" ], aborted_keys
+  end
+
+  test "a service that cannot do multipart has nothing to reconcile" do
+    assert_equal 0, MultipartUpload.abort_abandoned!(ActiveStorage::Blob.services.fetch("test"))
+  end
+
   private
     def blob(byte_size: 500.megabytes)
       ActiveStorage::Blob.create_before_direct_upload!(
@@ -80,5 +111,13 @@ class MultipartUploadTest < ActiveSupport::TestCase
 
     def stub(operation, response)
       @service.client.client.stub_responses(operation, response)
+    end
+
+    # The stubbed client lives in the service registry, so it keeps every
+    # request the whole file made. Only this test's are interesting.
+    def aborted_keys
+      @service.client.client.api_requests.drop(@requests_before)
+              .select { |request| request[:operation_name] == :abort_multipart_upload }
+              .map { |request| request[:params][:key] }
     end
 end
