@@ -57,7 +57,7 @@ class GoogleDriveImportJob < ApplicationJob
 
       size = Integer(metadata["size"], exception: false)
       raise PermanentError, "Google Drive didn't provide this file's size." unless size
-      raise PermanentError, "This file is larger than Campsend's #{Send.human_max_size_for(drive_import.user)} limit." if size > Send.max_size_for(drive_import.user)
+      raise PermanentError, "This file is larger than Campsend's #{Send.human_max_file_size_for(drive_import.user)} limit." if size > Send.max_file_size_for(drive_import.user)
       raise PermanentError, "Google Drive didn't provide this file's name." if metadata["name"].blank?
       if metadata["md5Checksum"].present? && !metadata["md5Checksum"].match?(/\A[0-9a-f]{32}\z/i)
         raise PermanentError, "Google Drive returned an invalid file checksum."
@@ -88,7 +88,7 @@ class GoogleDriveImportJob < ApplicationJob
 
       client.download(drive_import.google_file_id, token:, resource_key: drive_import.resource_key) do |chunk|
         bytes += chunk.bytesize
-        raise PermanentError, "The downloaded file exceeded Campsend's #{Send.human_max_size_for(drive_import.user)} limit." if bytes > Send.max_size_for(drive_import.user)
+        raise PermanentError, "The downloaded file exceeded Campsend's #{Send.human_max_file_size_for(drive_import.user)} limit." if bytes > Send.max_file_size_for(drive_import.user)
 
         digest.update(chunk)
         file.write(chunk)

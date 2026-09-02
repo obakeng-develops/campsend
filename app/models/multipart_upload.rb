@@ -12,8 +12,10 @@ class MultipartUpload
   attr_reader :blob, :upload_id
 
   class << self
+    # A service that fronts several buckets, one per user, answers
+    # multipart_service_for instead of exposing a client and bucket of its own.
     def supported?(service)
-      service.respond_to?(:client) && service.respond_to?(:bucket)
+      service.respond_to?(:multipart_service_for) || (service.respond_to?(:client) && service.respond_to?(:bucket))
     end
 
     def wanted_for?(byte_size, service)
@@ -38,8 +40,10 @@ class MultipartUpload
 
     # An upload the client never completed or aborted keeps billing for its
     # parts, and the blob it reserved is purged after a day regardless.
+    # Takes one bucket. A service fronting many has to sweep each of them, so it
+    # calls this per bucket rather than passing itself.
     def abort_abandoned!(service = ActiveStorage::Blob.service, older_than: 1.day.ago)
-      return 0 unless supported?(service)
+      return 0 unless service.respond_to?(:client) && service.respond_to?(:bucket)
 
       client = service.client.client
       bucket = service.bucket.name
@@ -66,12 +70,17 @@ class MultipartUpload
       Rails.application.message_verifier("multipart_upload")
     end
 
+    def s3_service_for(blob)
+      service = blob.service
+      service.respond_to?(:multipart_service_for) ? service.multipart_service_for(blob.key) : service
+    end
+
     def s3_client(blob)
-      blob.service.client.client
+      s3_service_for(blob).client.client
     end
 
     def bucket_name(blob)
-      blob.service.bucket.name
+      s3_service_for(blob).bucket.name
     end
   end
 
