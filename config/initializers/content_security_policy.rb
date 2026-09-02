@@ -8,14 +8,14 @@ Rails.application.configure do
 
     policy.default_src :self
     policy.base_uri :self
-    policy.connect_src :self, *remote_sources, *google_connections, *config.x.extension_connect_src
+    policy.connect_src :self, *remote_sources, *google_connections
     policy.font_src :self
     policy.form_action :self
     policy.frame_ancestors :none
     policy.img_src :self, :data, :blob, *remote_sources
     policy.object_src :none
     policy.frame_src :self, *google_frames
-    policy.script_src :self, *google_scripts, *config.x.extension_script_src
+    policy.script_src :self, *google_scripts
     policy.style_src :self
   end
 
