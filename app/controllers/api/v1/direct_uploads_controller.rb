@@ -10,7 +10,7 @@ class Api::V1::DirectUploadsController < ActiveStorage::DirectUploadsController
     blob = current_user.reserve_blob!(**blob_args)
     first_delivery = !current_user.sends.exists?
     WideEvent.add(blob_id: blob.id, upload_bytes: blob.byte_size, first_delivery:, upload_operation: "reserved")
-    render json: direct_upload_json(blob)
+    render json: direct_upload_json(blob).merge(multipart_json(blob))
   rescue User::InvalidUploadSize => error
     render json: { error: error.message }, status: :bad_request
   rescue Campsend::Policy::Denied => error
@@ -20,6 +20,26 @@ class Api::V1::DirectUploadsController < ActiveStorage::DirectUploadsController
   end
 
   private
+    # A file too big for one PUT gets the multipart plan instead. The single-PUT
+    # url that direct_upload_json builds is still in the response and still
+    # valid; the client ignores it when this key is present.
+    def multipart_json(blob)
+      return {} unless MultipartUpload.wanted_for?(blob.byte_size, blob.service)
+
+      upload = MultipartUpload.start(blob)
+      WideEvent.add(upload_operation: "multipart_started", part_count: upload.part_count)
+      {
+        multipart: {
+          token: upload.token,
+          part_size: upload.part_size,
+          part_count: upload.part_count,
+          parts_url: api_v1_multipart_upload_parts_path,
+          complete_url: api_v1_multipart_upload_complete_path,
+          abort_url: api_v1_multipart_upload_abort_path
+        }
+      }
+    end
+
     def require_authentication
       render json: { error: "Sign in to upload files." }, status: :unauthorized unless authenticated?
     end

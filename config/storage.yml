@@ -6,6 +6,16 @@ alternate_test:
   service: Disk
   root: <%= Rails.root.join("tmp/storage-alternate") %>
 
+# Answers the S3 API offline, so multipart upload is testable without network
+# or credentials. Used only by the test suite.
+s3_test:
+  service: S3
+  bucket: campsend-test
+  region: us-east-1
+  access_key_id: stub
+  secret_access_key: stub
+  stub_responses: true
+
 local:
   service: Disk
   root: <%= Rails.root.join("storage") %>
