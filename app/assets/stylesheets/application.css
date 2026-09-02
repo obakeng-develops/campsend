@@ -337,6 +337,7 @@
   .drop-prompt strong { color: var(--text-primary); font-size: 1rem; margin-top: var(--space-4); }
   .drop-prompt span { font-size: 0.8125rem; margin-top: var(--space-1); }
   .drop-prompt small { color: var(--text-quaternary); margin-top: var(--space-8); }
+  .drop-prompt small + small { margin-top: var(--space-1); }
   .drop-icon { align-items: center; background: var(--bg-action); border-radius: 50%; box-shadow: var(--button-shadow); color: var(--text-on-action); display: flex; font-size: 1.3rem; height: 3.25rem; justify-content: center; width: 3.25rem; }
   .selected-state { display: flex; flex: 1; flex-direction: column; gap: var(--space-3); min-width: 0; width: 100%; }
   .selected-files { align-content: start; display: grid; flex: 1; gap: var(--space-3); grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); width: 100%; }

@@ -38,6 +38,13 @@ module Campsend
     def usage_for(user)
     end
 
+    # Storage a distribution meters for this user as { used:, limit: }, or nil
+    # when storage is not metered. The composer states it beside the
+    # per-delivery limit, because a delivery can be refused for either reason
+    # and only one of the two is obvious from the file you picked.
+    def storage_usage_for(user)
+    end
+
     def telemetry_for(user)
       {}
     end

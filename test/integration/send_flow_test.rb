@@ -272,6 +272,14 @@ class SendFlowTest < ActionDispatch::IntegrationTest
     assert_select "h1", text: "This delivery is no longer available."
   end
 
+  test "the composer states a per-delivery limit, and no storage line when storage is not metered" do
+    get new_send_path
+
+    assert_response :success
+    assert_select ".drop-prompt small", count: 1
+    assert_select ".drop-prompt small", text: "Any file type. Up to #{Send::MAX_FILES} files, 2 GB per delivery."
+  end
+
   test "signed-in sender can prepare a direct upload" do
     get new_send_path
     assert_response :success
