@@ -36,6 +36,32 @@ class MultipartUpload
       raise ActiveRecord::RecordNotFound
     end
 
+    # An upload the client never completed or aborted keeps billing for its
+    # parts, and the blob it reserved is purged after a day regardless.
+    def abort_abandoned!(service = ActiveStorage::Blob.service, older_than: 1.day.ago)
+      return 0 unless supported?(service)
+
+      client = service.client.client
+      bucket = service.bucket.name
+      aborted = 0
+      markers = {}
+
+      loop do
+        listing = client.list_multipart_uploads(bucket: bucket, **markers)
+        listing.uploads.each do |upload|
+          next if upload.initiated > older_than
+
+          client.abort_multipart_upload(bucket: bucket, key: upload.key, upload_id: upload.upload_id)
+          aborted += 1
+        end
+        break unless listing.is_truncated
+
+        markers = { key_marker: listing.next_key_marker, upload_id_marker: listing.next_upload_id_marker }
+      end
+
+      aborted
+    end
+
     def verifier
       Rails.application.message_verifier("multipart_upload")
     end
