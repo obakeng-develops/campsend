@@ -285,7 +285,8 @@ class SendFlowTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "aside.site-sidebar"
     assert_select ".selected-state[hidden]"
-    assert_select "input[data-direct-upload-url='#{rails_direct_uploads_url}']"
+    assert_select "input[data-upload-url='#{rails_direct_uploads_path}']"
+    assert_select "form[data-controller~='upload']"
     assert_select "form[data-controller~='upload-progress']"
     assert_select "form[data-controller~='schedule']"
     assert_select "input[type='datetime-local']"
