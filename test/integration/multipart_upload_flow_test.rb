@@ -35,6 +35,25 @@ class MultipartUploadFlowTest < ActionDispatch::IntegrationTest
     assert multipart.fetch("token").present?
   end
 
+  test "a blob on a per-user bucket reaches that bucket's client" do
+    stub(:create_multipart_upload, { upload_id: "upload-id" })
+    inner = @service
+    wrapper = Class.new do
+      def initialize(inner) = @inner = inner
+      def multipart_service_for(_key) = @inner
+    end.new(inner)
+    blob = ActiveStorage::Blob.create_before_direct_upload!(
+      key: "users/1/blobs/abc", filename: "master.mov", byte_size: 500.megabytes,
+      checksum: Base64.strict_encode64(Digest::MD5.digest("x")), content_type: "video/quicktime"
+    )
+    blob.define_singleton_method(:service) { wrapper }
+
+    upload = MultipartUpload.start(blob)
+
+    assert_equal "upload-id", upload.upload_id
+    assert_equal 5, upload.part_count
+  end
+
   test "parts are presigned a window at a time" do
     token = reserve
 

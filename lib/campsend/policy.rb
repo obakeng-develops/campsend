@@ -28,6 +28,13 @@ module Campsend
       Send::MAX_SEND_SIZE
     end
 
+    # How much one file may hold. Defaults to the whole delivery, so a single
+    # file can fill one. Multipart upload means this is no longer bounded by
+    # what a browser can send in one request.
+    def max_file_size_for(user)
+      max_send_size_for(user)
+    end
+
     def storage_service_name_for(user:)
     end
 

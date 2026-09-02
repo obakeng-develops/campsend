@@ -13,6 +13,24 @@ class MultipartUploadTest < ActiveSupport::TestCase
     assert_not MultipartUpload.wanted_for?(1.terabyte, ActiveStorage::Blob.services.fetch("test"))
   end
 
+  test "a service fronting one bucket per user can still do multipart" do
+    wrapper = Class.new do
+      def initialize(inner) = @inner = inner
+      def multipart_service_for(_key) = @inner
+    end.new(@service)
+
+    assert MultipartUpload.supported?(wrapper)
+    assert MultipartUpload.wanted_for?(500.megabytes, wrapper)
+  end
+
+  test "a wrapper has no single bucket to reconcile, so it sweeps none" do
+    wrapper = Class.new do
+      def multipart_service_for(_key) = nil
+    end.new
+
+    assert_equal 0, MultipartUpload.abort_abandoned!(wrapper)
+  end
+
   test "small files are left alone" do
     assert_not MultipartUpload.wanted_for?(MultipartUpload::THRESHOLD - 1, @service)
     assert MultipartUpload.wanted_for?(MultipartUpload::THRESHOLD, @service)

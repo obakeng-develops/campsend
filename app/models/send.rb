@@ -18,6 +18,15 @@ class Send < ApplicationRecord
     ActiveSupport::NumberHelper.number_to_human_size(max_size_for(user))
   end
 
+  # The ceiling for one file, which a delivery of several may exceed.
+  def self.max_file_size_for(user)
+    Campsend.policy.max_file_size_for(user)
+  end
+
+  def self.human_max_file_size_for(user)
+    ActiveSupport::NumberHelper.number_to_human_size(max_file_size_for(user))
+  end
+
   belongs_to :user
   belongs_to :collection, optional: true
   has_secure_token :public_id
