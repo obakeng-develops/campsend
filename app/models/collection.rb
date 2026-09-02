@@ -66,7 +66,7 @@ class Collection < ApplicationRecord
 
     def validate_limits!(candidate_blobs)
       errors.add(:base, "Choose no more than #{Send::MAX_FILES} files.") if candidate_blobs.size > Send::MAX_FILES
-      errors.add(:base, "Files must total 2 GB or less.") if candidate_blobs.sum(&:byte_size) > Send::MAX_SEND_SIZE
+      errors.add(:base, "Files must total #{Send.human_max_size_for(user)} or less.") if candidate_blobs.sum(&:byte_size) > Send.max_size_for(user)
       raise ActiveRecord::RecordInvalid, self if errors.any?
     end
 
