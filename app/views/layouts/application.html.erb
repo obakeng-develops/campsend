@@ -15,6 +15,9 @@
 
     <%= javascript_importmap_tags %>
     <%= yield :head %>
+    <% Rails.configuration.x.extension_head_partials.each do |partial| %>
+      <%= render partial %>
+    <% end %>
 
     <%# Enable PWA manifest for installable apps (make sure to enable in config/routes.rb too!) %>
     <%#= tag.link rel: "manifest", href: pwa_manifest_path(format: :json) %>
