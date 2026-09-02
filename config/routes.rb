@@ -34,6 +34,9 @@ Rails.application.routes.draw do
   post "mcp", to: "mcp/server#create", as: :mcp_server
 
   post "api/v1/direct_uploads", to: "api/v1/direct_uploads#create", as: :rails_direct_uploads
+  post "api/v1/multipart_uploads/parts", to: "api/v1/multipart_uploads#parts", as: :api_v1_multipart_upload_parts
+  post "api/v1/multipart_uploads/complete", to: "api/v1/multipart_uploads#complete", as: :api_v1_multipart_upload_complete
+  post "api/v1/multipart_uploads/abort", to: "api/v1/multipart_uploads#abort", as: :api_v1_multipart_upload_abort
   namespace :api do
     namespace :v1 do
       resources :google_drive_imports, only: :create
