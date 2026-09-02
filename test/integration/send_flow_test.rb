@@ -284,6 +284,20 @@ class SendFlowTest < ActionDispatch::IntegrationTest
     assert_select ".drop-prompt small", text: "Any file type. Up to #{Send::MAX_FILES} files, 2 GB per delivery."
   end
 
+  test "a metered distribution gets the default sentence, or its own" do
+    with_storage_usage(used: 1.gigabyte, limit: 4.gigabytes) do
+      get new_send_path
+
+      assert_select ".drop-prompt small", text: "Storage: 1 GB of 4 GB used. Sent files stay in My Files."
+    end
+
+    with_storage_usage(used: 1.gigabyte, limit: 4.gigabytes, note: "Files are removed after a week.") do
+      get new_send_path
+
+      assert_select ".drop-prompt small", text: "Storage: 1 GB of 4 GB used. Files are removed after a week."
+    end
+  end
+
   test "signed-in sender can prepare a direct upload" do
     get new_send_path
     assert_response :success
@@ -486,6 +500,17 @@ class SendFlowTest < ActionDispatch::IntegrationTest
   end
 
   private
+    # Minitest 6 dropped minitest/mock, so the policy is swapped for one that
+    # answers this single question.
+    def with_storage_usage(usage)
+      original = Campsend.policy
+      Campsend.policy = original.dup
+      Campsend.policy.define_singleton_method(:storage_usage_for) { |_user| usage }
+      yield
+    ensure
+      Campsend.policy = original
+    end
+
     def sign_in_as(user)
       login_token, raw_token = LoginToken.issue_for(user)
       post consume_sign_in_path(public_id: login_token.public_id), params: { token: raw_token }
