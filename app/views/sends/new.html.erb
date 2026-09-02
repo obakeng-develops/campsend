@@ -9,7 +9,7 @@
   </div>
 </div>
 
-<%= form_with model: @send, class: "send-form", data: { controller: "file-drop upload-progress schedule", action: "submit->schedule#sync direct-upload:start->upload-progress#start direct-upload:progress->upload-progress#updateProgress direct-upload:end->upload-progress#end direct-upload:error->upload-progress#error", schedule_utc_value: @send.scheduled_at&.iso8601, upload_progress_final_text_value: "Creating delivery…" } do |form| %>
+<%= form_with model: @send, class: "send-form", data: { controller: "file-drop upload-progress schedule upload", action: "submit->schedule#sync submit->upload#submit direct-upload:start->upload-progress#start direct-upload:progress->upload-progress#updateProgress direct-upload:end->upload-progress#end direct-upload:error->upload-progress#error", schedule_utc_value: @send.scheduled_at&.iso8601, upload_progress_final_text_value: "Creating delivery…" } do |form| %>
   <% if @send.errors.any? %>
     <div class="form-errors" role="alert">
       <strong>We couldn’t create this delivery:</strong>
@@ -52,7 +52,7 @@
         <p class="send-source-label">Or send separate files</p>
       <% end %>
       <div class="drop-zone" role="button" tabindex="0" aria-label="Choose files to send" data-file-drop-target="zone" data-action="dragover->file-drop#dragOver dragleave->file-drop#dragLeave drop->file-drop#drop click->file-drop#choose keydown.enter->file-drop#choose keydown.space->file-drop#choose">
-        <%= form.file_field :files, multiple: true, direct_upload: true, class: "visually-hidden", data: { file_drop_target: "input", action: "change->file-drop#changed" } %>
+        <%= form.file_field :files, multiple: true, class: "visually-hidden", data: { file_drop_target: "input", upload_target: "input", upload_url: rails_direct_uploads_path, action: "change->file-drop#changed" } %>
         <div class="drop-prompt" data-file-drop-target="prompt">
           <div class="drop-icon" aria-hidden="true">↑</div>
           <strong>Drop files here</strong>

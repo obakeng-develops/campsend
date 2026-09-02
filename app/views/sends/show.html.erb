@@ -37,9 +37,9 @@
           <span><%= number_to_human_size(file.byte_size) %></span>
         </div>
         <% unless @send.canceled? || @send.collection_id? %>
-          <%= form_with url: send_revisions_path(@send), scope: :revision, class: "file-replacement" do |form| %>
+          <%= form_with url: send_revisions_path(@send), scope: :revision, class: "file-replacement", data: { controller: "upload", action: "submit->upload#submit" } do |form| %>
             <%= form.hidden_field :attachment_id, value: file.id %>
-            <%= form.file_field :file, direct_upload: true, required: true, aria: { label: "Replacement for #{file.filename}" } %>
+            <%= form.file_field :file, required: true, data: { upload_target: "input", upload_url: rails_direct_uploads_path }, aria: { label: "Replacement for #{file.filename}" } %>
             <%= form.submit "Replace file", class: "button button--primary" %>
           <% end %>
         <% end %>

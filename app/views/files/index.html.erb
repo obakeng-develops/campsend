@@ -9,12 +9,12 @@
 </div>
 
 <div class="library-sources">
-  <%= form_with url: files_path, class: "library-upload", data: { controller: "upload-progress", action: "direct-upload:start->upload-progress#start direct-upload:progress->upload-progress#updateProgress direct-upload:end->upload-progress#end direct-upload:error->upload-progress#error", upload_progress_final_text_value: "Saving files…" } do |form| %>
+  <%= form_with url: files_path, class: "library-upload", data: { controller: "upload-progress upload", action: "submit->upload#submit direct-upload:start->upload-progress#start direct-upload:progress->upload-progress#updateProgress direct-upload:end->upload-progress#end direct-upload:error->upload-progress#error", upload_progress_final_text_value: "Saving files…" } do |form| %>
     <div>
       <strong>Upload files</strong>
       <span>Files you send are also saved here automatically.</span>
     </div>
-    <%= file_field_tag "files[]", multiple: true, required: true, direct_upload: true %>
+    <%= file_field_tag "files[]", multiple: true, required: true, data: { upload_target: "input", upload_url: rails_direct_uploads_path } %>
     <%= form.submit "Upload", class: "button", data: { upload_progress_target: "submit" } %>
     <div class="form-errors" role="alert" data-upload-progress-target="error" hidden></div>
   <% end %>

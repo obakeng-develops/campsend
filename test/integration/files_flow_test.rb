@@ -16,7 +16,9 @@ class FilesFlowTest < ActionDispatch::IntegrationTest
     get files_path
     assert_select "details.mobile-menu"
     assert_select ".mobile-menu__panel", text: /Shared with me/
-    assert_select "form.library-upload[data-controller='upload-progress']"
+    assert_select "form.library-upload[data-controller~='upload-progress']"
+    assert_select "form.library-upload[data-controller~='upload']"
+    assert_select "input[type='file'][data-upload-url='#{rails_direct_uploads_path}']"
     assert_select "[data-upload-progress-target='error'][hidden]"
     assert_select ".library-file__preview[href='#{file_path(@user.files.attachments.first)}']"
     assert_select "a[href='#{download_file_path(@user.files.attachments.first)}'][data-turbo='false']"
