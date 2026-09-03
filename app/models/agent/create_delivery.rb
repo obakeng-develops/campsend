@@ -21,7 +21,7 @@ class Agent::CreateDelivery < MCP::Tool
   class << self
     def call(recipient_email:, file_ids:, server_context:, message: nil, slug: nil, scheduled_at: nil)
       token = server_context.fetch(:api_token)
-      return Agent::Response.failure("This token can only read. Create a token with the write scope to send deliveries.") unless token.writable?
+      return Agent::Response.failure("This token can only read. Create one that can read and send.") unless token.writable?
 
       user = server_context.fetch(:user)
       blobs = owned_blobs(user, file_ids)
