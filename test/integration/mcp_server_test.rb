@@ -166,7 +166,7 @@ class McpServerTest < ActionDispatch::IntegrationTest
     end
 
     assert json.dig("result", "isError")
-    assert_match(/write scope/, text_content)
+    assert_match(/read and send/, text_content)
   end
 
   test "create_delivery sends a delivery and returns it" do

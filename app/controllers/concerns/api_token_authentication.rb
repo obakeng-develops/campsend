@@ -36,7 +36,7 @@ module ApiTokenAuthentication
     def require_writable_api_token
       return if @api_token.nil? || @api_token.writable?
 
-      render_api_error("This token can only read. Create a token with the write scope.", :forbidden)
+      render_api_error("This token can only read. Create one that can read and send.", :forbidden)
     end
 
     # A machine cannot act on a redirect to the sign-in page, which is what
