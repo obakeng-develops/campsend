@@ -39,6 +39,7 @@ Rails.application.routes.draw do
   post "api/v1/multipart_uploads/abort", to: "api/v1/multipart_uploads#abort", as: :api_v1_multipart_upload_abort
   namespace :api do
     namespace :v1 do
+      resources :deliveries, only: %i[index show create]
       resources :google_drive_imports, only: :create
     end
   end
