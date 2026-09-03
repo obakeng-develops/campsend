@@ -1,5 +1,15 @@
 class Api::V1::DirectUploadsController < ActiveStorage::DirectUploadsController
   include Authentication
+  include ApiTokenAuthentication
+
+  # Prepended so the token is read before require_authentication asks whether
+  # anybody is here. A browser without one still falls through to its session.
+  before_action :authenticate_api_token, prepend: true
+  before_action :require_writable_api_token
+  # A bearer token is not a cookie, so there is nothing for a forged request to
+  # ride on. A browser session still has one and still gets checked.
+  skip_forgery_protection
+  before_action :verify_authenticity_token, unless: -> { @api_token.present? }
   rate_limit to: 60, within: 1.hour, by: -> { current_user&.id || request.remote_ip }
 
   def create
