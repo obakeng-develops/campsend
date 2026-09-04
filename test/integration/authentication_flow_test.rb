@@ -84,6 +84,64 @@ class AuthenticationFlowTest < ActionDispatch::IntegrationTest
     assert_select "h1", text: "Sign in or start free."
   end
 
+  test "sign-in returns you to where you started" do
+    # The form has to carry it through its own POST, or it is lost before the
+    # email is even sent.
+    get new_session_path(return_to: "/pricing#studio")
+
+    assert_select "input[type=hidden][name=return_to][value='/pricing#studio']", count: 1
+
+    post session_path, params: { email_address: "sender@example.com", return_to: "/pricing#studio" }
+
+    assert_redirected_to new_session_path(return_to: "/pricing#studio")
+    assert_enqueued_with job: AuthenticationEmailJob, args: [ User.last, nil, "/pricing#studio" ]
+
+    # And the check-your-inbox screen has to keep it, or changing your mind
+    # about the address drops it.
+    get new_session_path(return_to: "/pricing#studio")
+
+    assert_select "a[href=?]", new_session_path(return_to: "/pricing#studio", change_email: 1)
+
+    token, raw = LoginToken.issue_for(User.last, return_to: "/pricing#studio")
+    post consume_sign_in_path(public_id: token.public_id), params: { token: raw }
+
+    assert_redirected_to "/pricing#studio"
+  end
+
+  test "a return_to that is not a path on this site never reaches the token" do
+    hostile = [ "https://example.com/phish", "//example.com/phish", "/\\example.com", "javascript:alert(1)", "pricing" ]
+
+    hostile.each do |candidate|
+      post session_path, params: { email_address: "sender@example.com", return_to: candidate }
+
+      assert_enqueued_with job: AuthenticationEmailJob, args: [ User.last, nil, nil ]
+    end
+
+    hostile.each do |candidate|
+      token = LoginToken.new(user: User.last, return_to: candidate, token_digest: "x", expires_at: 1.hour.from_now)
+
+      assert token.invalid?, "#{candidate} must not be storable"
+      assert_includes token.errors.attribute_names, :return_to
+    end
+  end
+
+  test "return_to wins over the send intent, because it is the more specific answer" do
+    user = User.create!(email_address: "sender@example.com")
+    token, raw = LoginToken.issue_for(user, intent: "send", return_to: "/pricing")
+
+    post consume_sign_in_path(public_id: token.public_id), params: { token: raw }
+
+    assert_redirected_to "/pricing"
+  end
+
+  test "a signed-in visitor who lands on sign-in is sent where they were going" do
+    sign_in_as User.create!(email_address: "sender@example.com")
+
+    get new_session_path(return_to: "/pricing")
+
+    assert_redirected_to "/pricing"
+  end
+
   test "send intent survives the sign-in link" do
     user = User.create!(email_address: "sender@example.com")
     login_token, raw_token = LoginToken.issue_for(user, intent: "send")
