@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# bin/importmap audit asks the npm registry which of our pinned packages have
+# advisories against them. It is the only check that needs a third party to
+# answer, and that endpoint is barely answering: the rest of the registry
+# responds in milliseconds while /-/npm/v1/security/advisories/bulk takes either
+# side of the sixty second read timeout importmap gives it and does not expose.
+#
+# A build that goes red because somebody else is down teaches everyone to stop
+# reading the build, which costs more than this audit is worth. So a transport
+# failure is reported and tolerated here. Anything else the audit says still
+# fails: importmap wraps every transport failure in one recognisable message,
+# and an advisory does not look like it.
+#
+# Retrying does not help. The failure is a hang rather than a blip, so a second
+# attempt spends another minute arriving at the same place.
+#
+# Both bin/ci and the scan_js job in CI go through this, so the two cannot
+# disagree about what a slow registry means.
+set -uo pipefail
+
+output="$(bin/importmap audit 2>&1)"
+status=$?
+printf '%s\n' "$output"
+
+if [ "$status" -ne 0 ] && printf '%s' "$output" | grep -q "Unexpected transport error"; then
+  echo "Skipped: the npm advisories endpoint did not answer. Run bin/importmap audit by hand when it matters."
+  exit 0
+fi
+
+exit "$status"
