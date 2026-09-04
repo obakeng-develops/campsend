@@ -15,7 +15,7 @@
       <h1>Check your inbox.</h1>
       <p>We emailed a sign-in link to <strong><%= @sign_in_email %></strong>. It expires in 15 minutes.<%= " Open it to continue your delivery." if @sign_in_intent == "send" %></p>
     </div>
-    <%= link_to "Use another email", new_session_path(intent: @sign_in_intent, change_email: 1), class: "button button--wide" %>
+    <%= link_to "Use another email", new_session_path(intent: @sign_in_intent, return_to: params[:return_to], change_email: 1), class: "button button--wide" %>
   <% else %>
     <div class="auth-copy">
       <h1><%= @sign_in_intent == "send" ? "Start your delivery." : "Sign in or start free." %></h1>
@@ -24,6 +24,7 @@
 
     <%= form_with url: session_path, class: "auth-form" do |form| %>
       <%= hidden_field_tag :intent, params[:intent] if params[:intent].present? %>
+      <%= hidden_field_tag :return_to, params[:return_to] if params[:return_to].present? %>
       <div class="field">
         <%= form.label :email_address, "Email address" %>
         <%= form.email_field :email_address, required: true, autofocus: true, autocomplete: "email", placeholder: "you@example.com" %>

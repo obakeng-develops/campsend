@@ -20,7 +20,7 @@ class SignInsController < ApplicationController
         session[:send_intent_started_at] = send_intent_started_at
         WideEvent.add(user_id: user.id, onboarding_event: "sign_in_completed", authentication_intent: "send")
       end
-      redirect_to(login_token&.intent == "send" ? new_send_path : files_path, notice: "Signed in.")
+      redirect_to after_sign_in_path(intent: login_token&.intent, return_to: login_token&.return_to), notice: "Signed in."
     else
       redirect_to new_session_path, alert: "That sign-in link has expired. Ask for a new one."
     end
