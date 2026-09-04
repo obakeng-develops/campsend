@@ -1,3 +1,3 @@
 module Campsend
-  VERSION = "0.11.1"
+  VERSION = "0.11.2"
 end
