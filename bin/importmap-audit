@@ -5,25 +5,31 @@
 # responds in milliseconds while /-/npm/v1/security/advisories/bulk takes either
 # side of the sixty second read timeout importmap gives it and does not expose.
 #
-# A build that goes red because somebody else is down teaches everyone to stop
-# reading the build, which costs more than this audit is worth. So a transport
-# failure is reported and tolerated here. Anything else the audit says still
-# fails: importmap wraps every transport failure in one recognisable message,
-# and an advisory does not look like it.
+# It has failed two different ways in one afternoon: a hang past the timeout,
+# and a fast 503. A build that goes red because somebody else is down teaches
+# everyone to stop reading the build, which costs more than this audit is worth.
 #
-# Retrying does not help. The failure is a hang rather than a blip, so a second
-# attempt spends another minute arriving at the same place.
+# So a registry that cannot answer is reported and tolerated, and the test for
+# that is the exception class rather than any one message. Importmap::Npm raises
+# HTTPError at four places -- two transport failures and two unexpected response
+# codes -- and every one of them means the registry, never the packages. A real
+# advisory takes a different path entirely: it prints a table and calls exit 1
+# without raising anything. So the two cannot be confused, and a status npm has
+# not invented yet needs no change here.
+#
+# Retrying does not help. One failure shape is a hang, so a second attempt
+# spends another minute arriving at the same place.
 #
 # Both bin/ci and the scan_js job in CI go through this, so the two cannot
-# disagree about what a slow registry means.
+# disagree about what a broken registry means.
 set -uo pipefail
 
 output="$(bin/importmap audit 2>&1)"
 status=$?
 printf '%s\n' "$output"
 
-if [ "$status" -ne 0 ] && printf '%s' "$output" | grep -q "Unexpected transport error"; then
-  echo "Skipped: the npm advisories endpoint did not answer. Run bin/importmap audit by hand when it matters."
+if [ "$status" -ne 0 ] && printf '%s' "$output" | grep -q "Importmap::Npm::HTTPError"; then
+  echo "Skipped: the npm advisories endpoint could not answer. Run bin/importmap audit by hand when it matters."
   exit 0
 fi
 
