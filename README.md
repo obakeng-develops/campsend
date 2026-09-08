@@ -4,7 +4,7 @@ Campsend sends files to one recipient through an expiring, revocable link. A sen
 
 **Campsend is meant to be self-hosted.** Run it on your own machine or your own server, and the files you send stay on infrastructure you control. It is a Rails application with SQLite and no other services to run.
 
-![The My Files library in Campsend, listing two uploaded images with their size and upload time, each offering Send, Download and Remove](docs/images/my-files.png)
+<img width="2008" height="2008" alt="Delivery to Sam · Campsend (Window) 2026-08-27 09:30 AM" src="https://github.com/user-attachments/assets/a1e7daba-0760-4913-9951-69e587f78c0c" />
 
 ## Running it yourself
 
