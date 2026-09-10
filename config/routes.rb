@@ -3,6 +3,8 @@ Rails.application.routes.draw do
   get "robots.txt", to: "home#robots", defaults: { format: :text }
 
   resource :session, only: %i[new create destroy]
+  post "auth/:provider", to: "oauth_sessions#create", as: :oauth_session
+  get "auth/:provider/callback", to: "oauth_sessions#callback", as: :oauth_callback
   get "sign-in/:public_id", to: "sign_ins#show", as: :sign_in
   post "sign-in/:public_id", to: "sign_ins#create", as: :consume_sign_in
 

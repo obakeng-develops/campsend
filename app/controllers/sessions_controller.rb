@@ -33,23 +33,4 @@ class SessionsController < ApplicationController
     reset_session
     redirect_to root_path
   end
-
-  private
-    # Somewhere on this site to land after signing in, so a visitor who was part
-    # way through something arrives back at it rather than at their files. An
-    # extension can send someone here from a page core knows nothing about and
-    # still get them home. Anything that is not a path on this site is dropped
-    # rather than corrected, because there is no honest way to guess what was
-    # meant.
-    def return_to
-      candidate = params[:return_to].to_s
-      candidate if candidate.match?(LoginToken::RETURN_TO) && candidate.length <= 200
-    end
-
-    def start_send_intent
-      return if session[:send_intent_started_at]
-
-      session[:send_intent_started_at] = Time.current.to_i
-      WideEvent.add(onboarding_event: "send_intent_started")
-    end
 end
