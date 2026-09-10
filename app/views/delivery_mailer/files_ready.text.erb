@@ -1,7 +1,9 @@
-<%= @send.user.email_address %> sent you <%= pluralize(@file_count, "file") %>.
+Your <%= @file_count == 1 ? "file is" : "#{@file_count} files are" %> ready.
 
-<% if @send.message.present? %>“<%= @send.message %>”
-
-<% end %><%= @file_count == 1 ? "View file" : "View files" %>: <%= delivery_url(public_id: @send.delivery_identifier, anchor: "token=#{@access_token}") %>
+<%= @sender %> sent <%= @file_count == 1 ? "it" : "them" %> to you.
+<% if @send.message.present? %>
+“<%= @send.message %>”
+<% end %>
+<%= @file_count == 1 ? "View file" : "View files" %>: <%= delivery_url(public_id: @send.delivery_identifier, anchor: "token=#{@access_token}") %>
 
 This delivery was sent to <%= @send.recipient_email %>. Forwarding the full link shares access.
