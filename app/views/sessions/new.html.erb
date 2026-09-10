@@ -22,14 +22,39 @@
       <p><%= @sign_in_intent == "send" ? "Enter your email address. We’ll send a sign-in link, then bring you straight to your delivery." : "Enter your email address. If you’re new, we’ll create your Free account. No password needed." %></p>
     </div>
 
+    <% providers = OauthProvider.configured %>
+    <% if providers.any? %>
+      <%# Above the form on purpose: one click beats leaving for an inbox, and a
+          provider is only offered here when its credentials are configured. %>
+      <div class="auth-providers">
+        <% providers.each do |provider| %>
+          <%# turbo: false because the redirect leaves the site. Turbo follows a
+              form's redirect with fetch, cross-origin redirects cannot be
+              followed that way, and the failure is silent: the button does
+              nothing at all. The browser has to submit this one itself. %>
+          <%= button_to oauth_session_path(provider: provider.key,
+                intent: params[:intent].presence, return_to: params[:return_to].presence),
+                class: "button button--wide", form: { data: { turbo: false } } do %>
+            Continue with <%= provider.label %>
+          <% end %>
+        <% end %>
+      </div>
+      <p class="auth-divider"><span>or</span></p>
+    <% end %>
+
     <%= form_with url: session_path, class: "auth-form" do |form| %>
       <%= hidden_field_tag :intent, params[:intent] if params[:intent].present? %>
       <%= hidden_field_tag :return_to, params[:return_to] if params[:return_to].present? %>
       <div class="field">
         <%= form.label :email_address, "Email address" %>
-        <%= form.email_field :email_address, required: true, autofocus: true, autocomplete: "email", placeholder: "you@example.com" %>
+        <%= form.email_field :email_address, required: true, autofocus: providers.none?, autocomplete: "email", placeholder: "you@example.com" %>
       </div>
       <%= form.submit "Email me a sign-in link", class: "button button--primary button--wide" %>
     <% end %>
+  <% end %>
+
+  <%# A distribution can add to this screen without core knowing what it is. %>
+  <% Rails.configuration.x.sign_in_partials.each do |partial| %>
+    <%= render partial %>
   <% end %>
 </section>

@@ -26,6 +26,28 @@ Trusted distributions can add private Rails engines at bundle time by setting `C
 | `SMTP_USERNAME` | Yes | SMTP authentication username. |
 | `SMTP_PASSWORD` | Yes | SMTP authentication password. |
 
+## Sign in with Google or GitHub
+
+All optional. Sign-in works without any of these: a provider with no credentials
+is not offered, and the email link remains the default either way. Set both
+halves of a pair or neither, because half a pair is not configured.
+
+The callback to register with the provider is `https://<APP_HOST>/auth/google/callback`
+or `https://<APP_HOST>/auth/github/callback`.
+
+| Variable | Required | Description |
+| --- | --- | --- |
+| `GOOGLE_OAUTH_CLIENT_ID` | No | OAuth client id from Google Cloud. Enables "Continue with Google". |
+| `GOOGLE_OAUTH_CLIENT_SECRET` | No | Matching client secret. |
+| `GITHUB_OAUTH_CLIENT_ID` | No | OAuth app client id from GitHub. Enables "Continue with GitHub". |
+| `GITHUB_OAUTH_CLIENT_SECRET` | No | Matching client secret. |
+
+An account is keyed on its email address, so signing in with a provider reaches
+the same account as an emailed link to the same address. A provider's address is
+only accepted when the provider states it is verified — Google through
+`email_verified`, GitHub through the primary verified entry on `/user/emails`.
+An unverified address is refused rather than trusted.
+
 ## S3-compatible storage
 
 These settings are required when `ACTIVE_STORAGE_SERVICE=s3`.

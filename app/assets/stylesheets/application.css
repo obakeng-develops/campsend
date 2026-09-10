@@ -222,6 +222,12 @@
   .auth-copy { margin: var(--space-10) 0 var(--space-8); }
   .auth-copy h1 { font-size: 2rem; overflow-wrap: anywhere; }
   .auth-copy p { color: var(--text-secondary); margin-top: var(--space-3); max-width: 36ch; }
+  .auth-providers { display: grid; gap: var(--space-3); }
+  .auth-providers form { display: contents; }
+  /* A rule with the word set into it, so the two routes read as alternatives
+     rather than as a list. */
+  .auth-divider { align-items: center; color: var(--text-tertiary); display: flex; font-size: 0.8125rem; gap: var(--space-3); margin: var(--space-5) 0; }
+  .auth-divider::before, .auth-divider::after { background: var(--border-secondary); content: ""; flex: 1; height: 1px; }
   .auth-form { display: grid; gap: var(--space-4); }
   .fine-print { color: var(--text-quaternary); font-size: 0.75rem; margin-top: var(--space-6); text-align: center; }
 
