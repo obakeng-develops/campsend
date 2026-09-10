@@ -18,7 +18,15 @@ class MailerCopyTest < ActionMailer::TestCase
     delivery.save!
     mail = DeliveryMailer.with(send: delivery, access_token: token).files_ready
 
-    assert_equal "sender@example.com sent you a file", mail.subject
+    assert_equal "Your file is ready", mail.subject
+    # The sender's address identifies them in the display name and Reply-To.
+    # Putting it in the subject is what made these look like phishing.
+    assert_equal [ "sender@example.com" ], mail.reply_to
+    assert_match(/\Asender@example\.com via /, mail[:from].display_names.first)
+    assert_not_includes mail.subject, "sender@example.com"
+    # Attribution stays, but the body no longer opens on a bare address either.
+    assert_match(/\AYour file is ready\./, mail.text_part.body.decoded.strip)
+    assert_includes mail.text_part.body.decoded, "sender@example.com sent it to you."
     assert_includes mail.text_part.body.decoded, "View file:"
     assert_includes mail.text_part.body.decoded, "Forwarding the full link shares access."
   end
@@ -33,7 +41,7 @@ class MailerCopyTest < ActionMailer::TestCase
     delivery.save!
     mail = DeliveryMailer.with(send: delivery, access_token: token).files_ready
 
-    assert_equal "sender@example.com sent you 2 files", mail.subject
+    assert_equal "Your 2 files are ready", mail.subject
     assert_includes mail.text_part.body.decoded, "View files:"
   end
 
