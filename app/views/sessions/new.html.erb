@@ -28,9 +28,13 @@
           provider is only offered here when its credentials are configured. %>
       <div class="auth-providers">
         <% providers.each do |provider| %>
+          <%# turbo: false because the redirect leaves the site. Turbo follows a
+              form's redirect with fetch, cross-origin redirects cannot be
+              followed that way, and the failure is silent: the button does
+              nothing at all. The browser has to submit this one itself. %>
           <%= button_to oauth_session_path(provider: provider.key,
                 intent: params[:intent].presence, return_to: params[:return_to].presence),
-                class: "button button--wide" do %>
+                class: "button button--wide", form: { data: { turbo: false } } do %>
             Continue with <%= provider.label %>
           <% end %>
         <% end %>

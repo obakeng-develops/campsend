@@ -27,6 +27,10 @@ class OauthSignInTest < ActionDispatch::IntegrationTest
       assert_response :success
       assert_select ".auth-providers form[action=?]", oauth_session_path(provider: "google")
       assert_select ".auth-providers form[action=?]", oauth_session_path(provider: "github")
+      # Without data-turbo="false" the button silently does nothing: Turbo
+      # follows the redirect with fetch and cannot leave the origin. The server
+      # returns the same 302 either way, so this attribute is the only guard.
+      assert_select ".auth-providers form[data-turbo='false']", count: 2
       assert_select "form[action=?]", session_path
     end
   end
