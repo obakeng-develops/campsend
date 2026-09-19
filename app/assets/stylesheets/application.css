@@ -224,6 +224,7 @@
   .auth-copy p { color: var(--text-secondary); margin-top: var(--space-3); max-width: 36ch; }
   .auth-form { display: grid; gap: var(--space-4); }
   .fine-print { color: var(--text-quaternary); font-size: 0.75rem; margin-top: var(--space-6); text-align: center; }
+  .fine-print a { text-decoration: underline; text-underline-offset: 0.2em; }
 
   .field { display: grid; gap: var(--space-2); min-width: 0; }
   .field label { font-size: 0.8125rem; font-weight: 600; }

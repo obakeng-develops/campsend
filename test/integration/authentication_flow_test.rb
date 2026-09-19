@@ -77,6 +77,10 @@ class AuthenticationFlowTest < ActionDispatch::IntegrationTest
     assert_select "h1", text: "Check your inbox."
     assert_select ".auth-copy", text: /new@example.com/
     assert_select "form", count: 0
+    # The only way onward is the inbox. A button here reads as the next step
+    # on a phone and gets tapped, which requests a second link.
+    assert_select ".button", count: 0
+    assert_select ".fine-print a", text: "Use another email"
 
     get new_session_path
     assert_select "h1", text: "Check your inbox."
