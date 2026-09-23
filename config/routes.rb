@@ -19,6 +19,7 @@ Rails.application.routes.draw do
 
   resources :sends, only: %i[index new create show edit update destroy] do
     post :cancel, on: :member
+    post :confirm, on: :member
     post :revoke_access, on: :member
     post :rotate_access, on: :member
     resources :revisions, only: :create, module: :sends

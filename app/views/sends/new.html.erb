@@ -1,7 +1,7 @@
 <% content_for :title, "Send files · Campsend" %>
 
 <div class="compose-heading">
-  <%= link_to files_path, class: "back-link" do %><span aria-hidden="true">←</span> Back to My Files<% end %>
+  <% if verified? %><%= link_to files_path, class: "back-link" do %><span aria-hidden="true">←</span> Back to My Files<% end %><% end %>
   <div>
     <p class="eyebrow"><%= @first_delivery ? "Your first delivery" : "New delivery" %></p>
     <h1><%= @collection ? "Send #{@collection.name}." : "Choose what to send." %></h1>

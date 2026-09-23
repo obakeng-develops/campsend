@@ -1,4 +1,6 @@
 class Sends::RevisionsController < ApplicationController
+  allow_unverified_access
+
   def create
     delivery = current_user.sends.find(params[:send_id])
     return redirect_to delivery, alert: "Canceled deliveries cannot be updated." if delivery.canceled?

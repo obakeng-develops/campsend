@@ -11,6 +11,19 @@ class MailerCopyTest < ActionMailer::TestCase
     assert_includes mail.text_part.body.decoded, "Didn’t request this? You can safely ignore this email."
   end
 
+  test "confirmation email names the recipient and the file count" do
+    guest = User.create_with(verified_at: nil).find_or_create_by!(email_address: "guest@example.com")
+    held = guest.sends.new(recipient_email: "sam@example.com")
+    held.files.attach(create_uploaded_blob(guest))
+    held.deliver!
+    login_token, raw_token = LoginToken.issue_for(guest, intent: "send", delivery: held)
+    mail = AuthenticationMailer.with(login_token: login_token, token: raw_token).sign_in
+
+    assert_equal "Confirm your delivery to sam@example.com", mail.subject
+    assert_includes mail.text_part.body.decoded, "confirm your address and send 1 file to sam@example.com"
+    assert_includes mail.html_part.body.decoded, "Confirm and send"
+  end
+
   test "delivery email names one file and explains forwarding" do
     sender = User.create!(email_address: "sender@example.com")
     delivery = sender.sends.new(recipient_email: "sam@example.com", files: [ create_uploaded_blob(sender) ])

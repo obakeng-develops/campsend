@@ -155,16 +155,87 @@ class AuthenticationFlowTest < ActionDispatch::IntegrationTest
     assert_redirected_to new_send_path
   end
 
-  test "send intent explains and resumes the delivery flow" do
-    post session_path, params: { email_address: "sender@example.com", intent: "send" }
-    follow_redirect!
+  test "a new sender who wants to send starts as a guest, without an email" do
+    assert_no_enqueued_jobs only: AuthenticationEmailJob do
+      start_guest_as "guest@example.com"
+    end
 
+    assert_redirected_to new_send_path
+    assert session[:guest]
+    guest = User.last
+    assert_equal "guest@example.com", guest.email_address
+    assert_not guest.verified?
+
+    follow_redirect!
+    assert_response :success
+    assert_select "body.guest-body"
+    assert_select ".site-sidebar", count: 0
+    assert_select "a.back-link", count: 0
+  end
+
+  test "a claimed address never gets a guest session" do
+    User.create!(email_address: "sender@example.com")
+
+    assert_enqueued_with(job: AuthenticationEmailJob) { start_guest_as "sender@example.com" }
+
+    assert_redirected_to new_session_path(intent: "send")
+    assert_nil session[:user_id]
+    follow_redirect!
     assert_select "h1", text: "Check your inbox."
     assert_select ".auth-copy", text: /continue your delivery/
+  end
 
-    login_token, = LoginToken.issue_for(User.last, intent: "send")
-    get sign_in_path(public_id: login_token.public_id)
-    assert_select "input[type='submit'][value='Continue your delivery']"
+  test "an address with a held delivery never gets a second guest session" do
+    start_guest_as "guest@example.com"
+    guest = User.last
+    held = guest.sends.new(recipient_email: "sam@example.com")
+    held.files.attach(create_uploaded_blob(guest))
+    held.deliver!
+
+    open_session do |stranger|
+      stranger.post session_path, params: { email_address: "guest@example.com", intent: "send" }
+
+      stranger.assert_redirected_to new_session_path(intent: "send")
+      stranger.get send_path(held)
+      stranger.assert_redirected_to new_session_path
+    end
+  end
+
+  test "a guest is bounced from verified-only pages, and the sign-in page does not bounce them back" do
+    start_guest_as "guest@example.com"
+
+    get files_path
+    assert_redirected_to new_session_path
+    get api_tokens_path
+    assert_redirected_to new_session_path
+
+    get new_session_path
+    assert_response :success
+    assert_select "h1", text: "Sign in or start free."
+  end
+
+  test "a guest session ends the moment the address is confirmed anywhere" do
+    start_guest_as "guest@example.com"
+    guest = User.last
+
+    open_session do |phone|
+      login_token, raw_token = LoginToken.issue_for(guest)
+      phone.post consume_sign_in_path(public_id: login_token.public_id), params: { token: raw_token }
+      phone.assert_redirected_to files_path
+    end
+
+    get new_send_path
+    assert_redirected_to new_session_path
+  end
+
+  test "consuming a sign-in link verifies the sender" do
+    user = User.create_with(verified_at: nil).find_or_create_by!(email_address: "sender@example.com")
+
+    sign_in_as(user)
+
+    assert user.reload.verified?
+    get files_path
+    assert_response :success
   end
 
   test "pending sign-in copy follows the issued link intent" do
@@ -181,6 +252,15 @@ class AuthenticationFlowTest < ActionDispatch::IntegrationTest
     assert_response :unauthorized
     assert_equal "Sign in to upload files.", response.parsed_body.fetch("error")
     assert_not ActiveStorage::Blob.exists?
+  end
+
+  test "a guest may reserve a direct upload" do
+    start_guest_as "guest@example.com"
+
+    post rails_direct_uploads_path, params: { blob: blob_params }, as: :json
+
+    assert_response :success
+    assert_equal User.last.id, ActiveStorage::Blob.last.uploader_id
   end
 
   test "direct upload grants reject an expired sender session" do
@@ -250,21 +330,6 @@ class AuthenticationFlowTest < ActionDispatch::IntegrationTest
   end
 
   private
-    def sign_in_as(user)
-      login_token, raw_token = LoginToken.issue_for(user)
-      post consume_sign_in_path(public_id: login_token.public_id), params: { token: raw_token }
-    end
-
-    def blob_params
-      content = "hello"
-      {
-        filename: "hello.txt",
-        byte_size: content.bytesize,
-        checksum: Base64.strict_encode64(Digest::MD5.digest(content)),
-        content_type: "text/plain"
-      }
-    end
-
     def reserve_storage(user, byte_size)
       ActiveStorage::Blob.create_before_direct_upload!(
         filename: "reserved.bin",

@@ -6,19 +6,24 @@
     <span class="first-delivery-complete__mark" aria-hidden="true">✓</span>
     <div>
       <p class="eyebrow">First delivery</p>
-      <h1><%= @send.scheduled? ? "Your delivery is scheduled." : "Your delivery is on its way." %></h1>
-      <p><%= @send.scheduled? ? "We’ll email #{@send.recipient_email} at the scheduled time. Their link will stay active for 30 days." : "We’re emailing #{@send.recipient_email} now. Their link will stay active for 30 days." %></p>
+      <% if @send.email_status_held? %>
+        <h1>Almost there.</h1>
+        <p>We emailed <%= current_user.email_address %> a link. Open it to confirm your address and we’ll send this to <%= @send.recipient_email %>.</p>
+      <% else %>
+        <h1><%= @send.scheduled? ? "Your delivery is scheduled." : "Your delivery is on its way." %></h1>
+        <p><%= @send.scheduled? ? "We’ll email #{@send.recipient_email} at the scheduled time. Their link will stay active for 30 days." : "We’re emailing #{@send.recipient_email} now. Their link will stay active for 30 days." %></p>
+      <% end %>
       <div class="first-delivery-complete__actions">
         <%= link_to "View delivery", "#delivery-details", class: "button button--primary" %>
         <%= link_to "Send another", new_send_path, class: "button" %>
-        <%= link_to "Go to My Files", files_path, class: "button button--quiet" %>
+        <% if verified? %><%= link_to "Go to My Files", files_path, class: "button button--quiet" %><% end %>
       </div>
     </div>
   </section>
 <% end %>
 
 <div class="detail-heading">
-  <%= link_to sends_path, class: "back-link" do %><span aria-hidden="true">←</span> Sent<% end %>
+  <% if verified? %><%= link_to sends_path, class: "back-link" do %><span aria-hidden="true">←</span> Sent<% end %><% end %>
   <% status = @send.display_status %>
   <span class="status-pill status-pill--<%= status %>"><%= status.titleize %></span>
 </div>
@@ -36,7 +41,7 @@
           <strong><%= file.filename %></strong>
           <span><%= number_to_human_size(file.byte_size) %></span>
         </div>
-        <% unless @send.canceled? || @send.collection_id? %>
+        <% unless @send.canceled? || @send.collection_id? || @send.email_status_held? %>
           <%= form_with url: send_revisions_path(@send), scope: :revision, class: "file-replacement", data: { controller: "upload", action: "submit->upload#submit" } do |form| %>
             <%= form.hidden_field :attachment_id, value: file.id %>
             <%= form.file_field :file, required: true, data: { upload_target: "input", upload_url: rails_direct_uploads_path }, aria: { label: "Replacement for #{file.filename}" } %>
@@ -92,6 +97,13 @@
         <%= button_to "Cancel delivery", cancel_send_path(@send), class: "button button--quiet", form: { data: { turbo_confirm: "Cancel this scheduled delivery?" } } %>
       <% elsif @send.canceled? %>
         <span class="fine-print">This delivery will not be published.</span>
+      <% elsif @send.email_status_held? %>
+        <% if verified? %>
+          <%= button_to "Send now", confirm_send_path(@send), class: "button button--primary" %>
+        <% else %>
+          <span class="fine-print">Waiting for you to confirm <%= current_user.email_address %>. Open the link we emailed you.</span>
+        <% end %>
+        <%= button_to "Cancel delivery", cancel_send_path(@send), class: "button button--quiet", form: { data: { turbo_confirm: "Cancel this delivery?" } } %>
       <% elsif @send.email_status_pending? %>
         <span class="fine-print">Emailing the delivery link now.</span>
       <% elsif @send.email_status_failed? %>

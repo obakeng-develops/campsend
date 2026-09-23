@@ -1,16 +1,22 @@
-<% content_for :title, "Confirm sign in · Campsend" %>
+<% content_for :title, (@delivery ? "Confirm and send" : "Confirm sign in") + " · Campsend" %>
 
 <section class="auth-card" data-controller="secret-fragment">
   <div class="auth-brand">
     <%= render "shared/wordmark", large: true %>
   </div>
   <div class="auth-copy">
-    <h1>Sign in as <%= @login_token.user.email_address %>?</h1>
-    <p><%= @login_token.intent == "send" ? "Your delivery is ready to continue. Only proceed if you requested this link." : "Continue only if you requested this link." %></p>
+    <% if @delivery %>
+      <h1>Send <%= pluralize(@delivery.files.size, "file") %> to <%= @delivery.recipient_email %>?</h1>
+      <p><%= @delivery.files.map { |file| "#{file.filename} (#{number_to_human_size(file.byte_size)})" }.to_sentence %><% if @delivery.message.present? %>, with the note “<%= @delivery.message %>”<% end %>.</p>
+      <p>This confirms <%= @login_token.user.email_address %> is yours and signs you in. Only continue if you asked for this.</p>
+    <% else %>
+      <h1>Sign in as <%= @login_token.user.email_address %>?</h1>
+      <p><%= @login_token.intent == "send" ? "Your delivery is ready to continue. Only proceed if you requested this link." : "Continue only if you requested this link." %></p>
+    <% end %>
   </div>
   <%= form_with url: consume_sign_in_path(public_id: @login_token.public_id), class: "auth-form" do |form| %>
     <%= form.hidden_field :token, data: { secret_fragment_target: "input" } %>
-    <%= form.submit @login_token.intent == "send" ? "Continue your delivery" : "Continue to Campsend", class: "button button--primary button--wide", disabled: true, data: { secret_fragment_target: "submit" } %>
+    <%= form.submit (@delivery ? "Confirm and send" : (@login_token.intent == "send" ? "Continue your delivery" : "Continue to Campsend")), class: "button button--primary button--wide", disabled: true, data: { secret_fragment_target: "submit" } %>
   <% end %>
   <p class="fine-print" data-secret-fragment-target="message" hidden>This link is incomplete. Request a new sign-in link.</p>
 </section>

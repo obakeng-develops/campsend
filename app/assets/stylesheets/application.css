@@ -249,7 +249,7 @@
   .status-dot { background: var(--text-quaternary); border-radius: 50%; height: 0.375rem; width: 0.375rem; }
   .status-dot--opened { background: var(--warning); }
   .status-dot--downloaded { background: var(--positive); }
-  .status-dot--scheduled { background: var(--focus); }
+  .status-dot--scheduled, .status-dot--held { background: var(--focus); }
   .status-dot--failed, .status-dot--revoked, .status-dot--expired { background: var(--negative); }
   .status-dot--canceled { background: var(--text-quaternary); }
 
@@ -388,7 +388,7 @@
   .status-pill { background: var(--bg-tertiary); border: 1px solid var(--border-secondary); border-radius: 999px; color: var(--text-secondary); font-size: 0.75rem; padding: 0.25rem 0.65rem; }
   .status-pill--opened { color: var(--warning); }
   .status-pill--downloaded { color: var(--positive); }
-  .status-pill--scheduled { color: var(--focus); }
+  .status-pill--scheduled, .status-pill--held { color: var(--focus); }
   .status-pill--failed, .status-pill--revoked, .status-pill--expired { color: var(--negative); }
   .status-pill--canceled { color: var(--text-tertiary); }
   .first-delivery-complete { align-items: start; background: color-mix(in srgb, var(--positive) 7%, var(--bg-primary)); border: 1px solid color-mix(in srgb, var(--positive) 22%, var(--border-secondary)); border-radius: var(--radius-xl); display: grid; gap: var(--space-5); grid-template-columns: auto minmax(0, 1fr); margin-bottom: var(--space-8); padding: var(--space-6); transition: opacity var(--transition-enter), transform var(--transition-enter); }

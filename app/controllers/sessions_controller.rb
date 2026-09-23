@@ -4,7 +4,7 @@ class SessionsController < ApplicationController
   rate_limit to: 5, within: 15.minutes, only: :create, name: "email", by: -> { params[:email_address].to_s.strip.downcase }
 
   def new
-    redirect_to(after_sign_in_path(intent: params[:intent], return_to: return_to)) if authenticated?
+    redirect_to(after_sign_in_path(intent: params[:intent], return_to: return_to)) if verified?
     session.delete(:sign_in_email) if params[:change_email]
     @sign_in_email = session[:sign_in_email]
     @sign_in_intent = @sign_in_email ? session[:sign_in_intent] : ("send" if params[:intent] == "send")
@@ -15,7 +15,18 @@ class SessionsController < ApplicationController
     email_address = params.expect(:email_address).to_s.strip.downcase
     intent = params[:intent] == "send" ? "send" : nil
     start_send_intent if intent
-    user = User.find_or_create_by!(email_address: email_address)
+    user = User.create_with(verified_at: nil).find_or_create_by!(email_address: email_address)
+
+    # An address nobody has proven and nothing has been built under goes
+    # straight to the composer. The proof is asked for at the moment of sending.
+    if intent && user.guest_eligible?
+      send_intent_started_at = session[:send_intent_started_at]
+      start_session_for(user, guest: true)
+      session[:send_intent_started_at] = send_intent_started_at
+      WideEvent.add(user_id: user.id, onboarding_event: "guest_started", authentication_intent: intent)
+      return redirect_to new_send_path
+    end
+
     WideEvent.add(onboarding_event: "sign_in_requested", authentication_intent: intent) if intent
     AuthenticationEmailJob.perform_later(user, intent, return_to)
 

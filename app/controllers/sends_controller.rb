@@ -1,5 +1,6 @@
 class SendsController < ApplicationController
-  before_action :set_send, only: %i[show edit update destroy cancel revoke_access rotate_access]
+  allow_unverified_access only: %i[new create show cancel]
+  before_action :set_send, only: %i[show edit update destroy cancel revoke_access rotate_access confirm]
   rate_limit to: 20, within: 1.hour, only: :create, by: -> { current_user.id }
 
   def index
@@ -38,8 +39,12 @@ class SendsController < ApplicationController
     if @send.deliver!
       blobs = @send.files.blobs.to_a
       onboarding_duration_ms = ((Time.current.to_i - session.delete(:send_intent_started_at).to_i) * 1000 if @first_delivery && session[:send_intent_started_at])
-      WideEvent.add(delivery_id: @send.id, delivery_operation: @send.scheduled? ? "scheduled" : "created", scheduled_at: @send.scheduled_at&.iso8601(3), file_count: blobs.size, send_bytes: blobs.sum(&:byte_size), first_delivery: @first_delivery, onboarding_event: ("first_delivery_completed" if @first_delivery), onboarding_duration_ms:)
-      notice = @send.scheduled? ? "Delivery scheduled." : "We’re emailing the delivery link to #{@send.recipient_email}."
+      onboarding_event = (@send.email_status_held? ? "first_delivery_held" : "first_delivery_completed") if @first_delivery
+      WideEvent.add(delivery_id: @send.id, delivery_operation: @send.scheduled? ? "scheduled" : "created", scheduled_at: @send.scheduled_at&.iso8601(3), file_count: blobs.size, send_bytes: blobs.sum(&:byte_size), first_delivery: @first_delivery, held: @send.email_status_held?, onboarding_event:, onboarding_duration_ms:)
+      notice = if @send.email_status_held? then "Check your inbox: confirm your address and we’ll email #{@send.recipient_email}."
+      elsif @send.scheduled? then "Delivery scheduled."
+      else "We’re emailing the delivery link to #{@send.recipient_email}."
+      end
       session[:first_delivery_completed_id] = @send.id if @first_delivery
       redirect_to send_path(@send, onboarding: ("complete" if @first_delivery)), notice: (notice unless @first_delivery)
     else
@@ -68,9 +73,13 @@ class SendsController < ApplicationController
     end
 
     if @send.update_before_publication(update_send_params)
-      DeliveryEmailJob.enqueue(@send)
+      DeliveryEmailJob.enqueue(@send) unless @send.email_status_held?
       WideEvent.add(delivery_id: @send.id, delivery_operation: "rescheduled", scheduled_at: @send.scheduled_at&.iso8601(3))
-      redirect_to @send, notice: @send.scheduled? ? "Delivery schedule updated." : "Delivery is being published now."
+      notice = if @send.email_status_held? then "Delivery updated."
+      elsif @send.scheduled? then "Delivery schedule updated."
+      else "Delivery is being published now."
+      end
+      redirect_to @send, notice: notice
     elsif @send.publication_pending?
       render :edit, status: :unprocessable_entity
     else
@@ -110,7 +119,18 @@ class SendsController < ApplicationController
     redirect_to @send, notice: "Recipient access revoked."
   end
 
+  def confirm
+    if @send.confirm!
+      WideEvent.add(delivery_id: @send.id, delivery_operation: "confirmed")
+      redirect_to @send, notice: "We’re emailing the delivery link to #{@send.recipient_email}."
+    else
+      redirect_to @send, alert: "This delivery is not waiting to be sent."
+    end
+  end
+
   def rotate_access
+    return redirect_to @send, alert: "Confirm your email address first." if @send.email_status_held?
+
     @send.update!(email_status: "pending")
     AuditEvent.record!(action: "delivery.access_rotation_requested", target: @send)
     @send.published? ? DeliveryAccessEmailJob.perform_later(@send) : DeliveryEmailJob.enqueue(@send)
