@@ -22,6 +22,10 @@ class DeliveryEmailJob < ApplicationJob
         WideEvent.add(publication_outcome: "canceled")
         next
       end
+      if delivery.email_status_held?
+        WideEvent.add(publication_outcome: "held")
+        next
+      end
       if delivery.published?
         WideEvent.add(publication_outcome: "already_published", published_at: delivery.published_at.iso8601(3))
         next

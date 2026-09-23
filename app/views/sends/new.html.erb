@@ -1,7 +1,11 @@
 <% content_for :title, "Send files · Campsend" %>
 
 <div class="compose-heading">
-  <%= link_to files_path, class: "back-link" do %><span aria-hidden="true">←</span> Back to My Files<% end %>
+  <% if verified? %>
+    <%= link_to files_path, class: "back-link" do %><span aria-hidden="true">←</span> Back to My Files<% end %>
+  <% elsif current_user %>
+    <%= link_to sends_path, class: "back-link" do %><span aria-hidden="true">←</span> Your deliveries<% end %>
+  <% end %>
   <div>
     <p class="eyebrow"><%= @first_delivery ? "Your first delivery" : "New delivery" %></p>
     <h1><%= @collection ? "Send #{@collection.name}." : "Choose what to send." %></h1>
@@ -57,8 +61,8 @@
           <div class="drop-icon" aria-hidden="true">↑</div>
           <strong>Drop files here</strong>
           <span>or choose from your computer</span>
-          <small>Any file type. Up to <%= Send::MAX_FILES %> files, <%= Send.human_max_size_for(current_user) %> per delivery.</small>
-          <% if (storage = Campsend.policy.storage_usage_for(current_user)) %>
+          <small>Any file type. Up to <%= Send.max_files_for(current_user) %> files, <%= Send.human_max_size_for(current_user) %> per delivery.<%= " Confirm your email to send #{Send::MAX_FILES}." unless verified? %></small>
+          <% if current_user && (storage = Campsend.policy.storage_usage_for(current_user)) %>
             <small>Storage: <%= number_to_human_size(storage[:used]) %> of <%= number_to_human_size(storage[:limit]) %> used. <%= storage[:note] || "Sent files stay in My Files." %></small>
           <% end %>
         </div>
@@ -105,6 +109,13 @@
       <%= form.text_area :message, rows: 3, maxlength: 500, placeholder: "Add context for the recipient" %>
     </div>
     <%= render "schedule_fields", form: form %>
+    <% unless current_user %>
+      <div class="field">
+        <%= label_tag :sender_email, "Your email" %>
+        <%= email_field_tag :sender_email, nil, required: true, autocomplete: "email", placeholder: "you@studio.com", data: { upload_target: "senderEmail", start_url: session_path } %>
+        <small>The recipient sees this as the sender. We’ll email you a link to confirm it after you send.</small>
+      </div>
+    <% end %>
     <%= form.submit @collection ? "Send collection" : "Send files", class: "button button--primary button--wide button--send", data: { upload_progress_target: "submit" } %>
     <p class="upload-status" role="status" aria-live="polite" data-upload-progress-target="status" hidden></p>
     <p class="privacy-note"><span aria-hidden="true">⌁</span> The link expires after 30 days. Anyone with the full link can open it.</p>

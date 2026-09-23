@@ -19,7 +19,7 @@
   <% else %>
     <div class="auth-copy">
       <h1><%= @sign_in_intent == "send" ? "Start your delivery." : "Sign in or start free." %></h1>
-      <p><%= @sign_in_intent == "send" ? "Enter your email address. We’ll send a sign-in link, then bring you straight to your delivery." : "Enter your email address. If you’re new, we’ll create your Free account. No password needed." %></p>
+      <p><%= @sign_in_intent == "send" ? "Enter your email address to start. We’ll ask you to confirm it when you send." : "Enter your email address. If you’re new, we’ll create your Free account. No password needed." %></p>
     </div>
 
     <%= form_with url: session_path, class: "auth-form" do |form| %>

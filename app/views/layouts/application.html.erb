@@ -35,7 +35,7 @@
   <%# Pages that are not about the signed-in person never wear their shell. sign_ins asks
       who you are, and deliveries belong to the recipient rather than the account viewing
       them. sessions needs no entry: it redirects an authenticated visitor away. %>
-  <% app_shell = authenticated? && !%w[home sign_ins deliveries].include?(controller_name) %>
+  <% app_shell = verified? && !%w[home sign_ins deliveries].include?(controller_name) %>
   <% policy_usage = Campsend.policy.usage_for(current_user) if app_shell %>
   <body class="<%= app_shell ? "app-body" : "guest-body" %>">
     <% if flash.any? && controller_name != "sessions" %>
@@ -129,7 +129,8 @@
         <main class="app-main"><%= yield %></main>
       </div>
     <% else %>
-      <main class="guest-main"><%= yield %></main>
+      <%# The composer and delivery pages are laid out for the shell's main column; a guest sees them without the shell. %>
+      <main class="<%= controller_name == "sends" ? "app-main" : "guest-main" %>"><%= yield %></main>
     <% end %>
   </body>
 </html>

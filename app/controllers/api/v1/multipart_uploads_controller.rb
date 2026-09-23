@@ -1,6 +1,8 @@
 class Api::V1::MultipartUploadsController < ApplicationController
   MAX_PARTS_PER_REQUEST = 100
 
+  allow_unverified_access
+
   rate_limit to: 600, within: 1.hour, by: -> { current_user.id }
   before_action :set_upload
 

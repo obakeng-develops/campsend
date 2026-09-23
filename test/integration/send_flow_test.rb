@@ -499,7 +499,136 @@ class SendFlowTest < ActionDispatch::IntegrationTest
     assert_select ".activity-list time", text: /, \d{4} at /
   end
 
+  test "a guest's first delivery is held, and the emailed link confirms exactly that delivery" do
+    delete session_path
+    start_guest_as "guest@example.com"
+    guest = User.last
+    blob = create_uploaded_blob(guest, content: "draft", filename: "draft.txt")
+
+    assert_enqueued_with(job: AuthenticationEmailJob) do
+      assert_no_enqueued_jobs only: DeliveryEmailJob do
+        post sends_path, params: { send: { recipient_email: "sam@example.com", message: "First look.", files: [ blob.signed_id ] } }
+      end
+    end
+
+    held = Send.last
+    assert held.email_status_held?
+    assert_redirected_to send_path(held, onboarding: "complete")
+    follow_redirect!
+    assert_select ".first-delivery-complete h1", text: "Almost there."
+    assert_select ".status-pill--held", text: "Held"
+    assert_select "meta[http-equiv='refresh']", count: 0
+    assert_select "form[action=?]", confirm_send_path(held), count: 0
+    assert_select ".file-replacement", count: 0
+    assert_not guest.files.blobs.exists?(blob.id)
+
+    perform_enqueued_jobs only: AuthenticationEmailJob
+    mail = ActionMailer::Base.deliveries.last
+    assert_equal "Confirm your delivery to sam@example.com", mail.subject
+    login_token = LoginToken.last
+    assert_equal held, login_token.delivery
+    raw_token = mail.text_part.body.decoded[/#token=(\S+)/, 1]
+
+    get sign_in_path(public_id: login_token.public_id)
+    assert_select "h1", text: "Send 1 file to sam@example.com?"
+    assert_select ".auth-copy", text: /draft\.txt/
+    assert_select "input[type='submit'][value='Confirm and send']"
+
+    assert_enqueued_with(job: DeliveryEmailJob, args: [ held ]) do
+      post consume_sign_in_path(public_id: login_token.public_id), params: { token: raw_token }
+    end
+    assert_redirected_to send_path(held)
+    assert guest.reload.verified?
+    assert held.reload.email_status_pending?
+    assert guest.files.blobs.exists?(blob.id)
+    follow_redirect!
+    assert_select ".flash--notice", text: /emailing the delivery link to sam@example.com/
+    assert_select "body.app-body"
+  end
+
+  test "confirming one held delivery leaves the others held, with a Send now button for the owner" do
+    delete session_path
+    start_guest_as "guest@example.com"
+    guest = User.last
+    first = hold_delivery(guest, "one@example.com")
+    second = hold_delivery(guest, "two@example.com")
+    login_token, raw_token = LoginToken.issue_for(guest, intent: "send", delivery: first)
+
+    post consume_sign_in_path(public_id: login_token.public_id), params: { token: raw_token }
+
+    assert first.reload.email_status_pending?
+    assert second.reload.email_status_held?
+
+    get send_path(second)
+    assert_select "form[action=?]", confirm_send_path(second), text: /Send now/
+
+    assert_enqueued_with(job: DeliveryEmailJob, args: [ second ]) { post confirm_send_path(second) }
+    assert_redirected_to send_path(second)
+    assert second.reload.email_status_pending?
+  end
+
+  test "a guest cannot send now, rotate access or edit, but can cancel" do
+    delete session_path
+    start_guest_as "guest@example.com"
+    held = hold_delivery(User.last, "sam@example.com")
+
+    post confirm_send_path(held)
+    assert_redirected_to new_session_path
+    assert held.reload.email_status_held?
+
+    post rotate_access_send_path(held)
+    assert_redirected_to new_session_path
+
+    get edit_send_path(held)
+    assert_redirected_to new_session_path
+
+    post cancel_send_path(held)
+    assert_redirected_to send_path(held)
+    assert held.reload.canceled?
+  end
+
+  test "a returning guest finds their held deliveries and can ask for the link again" do
+    delete session_path
+    start_guest_as "guest@example.com"
+    held = hold_delivery(User.last, "sam@example.com")
+
+    get sends_path
+    assert_response :success
+    assert_select "body.guest-body"
+    assert_select ".send-card[href=?]", send_path(held)
+    assert_select ".guest-notice", text: /sending as guest@example.com/
+    assert_select ".guest-notice form[action=?]", session_path
+
+    assert_enqueued_with(job: AuthenticationEmailJob, args: [ User.last, "send", nil ]) do
+      post session_path, params: { email_address: "guest@example.com", intent: "send" }
+    end
+    assert_redirected_to new_session_path(intent: "send")
+    follow_redirect!
+    assert_select "h1", text: "Check your inbox."
+  end
+
+  test "rotating access cannot un-hold a delivery" do
+    held = hold_delivery(@user, "sam@example.com")
+    held.update!(email_status: "held")
+
+    assert_no_enqueued_jobs only: DeliveryEmailJob do
+      post rotate_access_send_path(held)
+    end
+
+    assert_redirected_to send_path(held)
+    assert_equal "Confirm your email address first.", flash[:alert]
+    assert held.reload.email_status_held?
+  end
+
   private
+    def hold_delivery(user, recipient_email)
+      user.sends.new(recipient_email: recipient_email).tap do |delivery|
+        delivery.files.attach(create_uploaded_blob(user))
+        delivery.save!
+        delivery.update!(email_status: "held")
+      end
+    end
+
     # Minitest 6 dropped minitest/mock, so the policy is swapped for one that
     # answers this single question.
     def with_storage_usage(usage)
@@ -509,11 +638,6 @@ class SendFlowTest < ActionDispatch::IntegrationTest
       yield
     ensure
       Campsend.policy = original
-    end
-
-    def sign_in_as(user)
-      login_token, raw_token = LoginToken.issue_for(user)
-      post consume_sign_in_path(public_id: login_token.public_id), params: { token: raw_token }
     end
 
     def authorize_delivery(send_record, raw_token)

@@ -1,6 +1,7 @@
 class Send < ApplicationRecord
   ACCESS_LIFETIME = 30.days
   MAX_FILES = 20
+  GUEST_MAX_FILES = 5
   MAX_SEND_SIZE = 2.gigabytes
   RESERVED_SLUGS = %w[access api d download files opened rails session shared sign-in sends up].freeze
   SLUG_FORMAT = /\A[a-z0-9]+(?:-[a-z0-9]+)*\z/
@@ -18,6 +19,11 @@ class Send < ApplicationRecord
     ActiveSupport::NumberHelper.number_to_human_size(max_size_for(user))
   end
 
+  # A sender who has not confirmed their address gets a smaller delivery.
+  def self.max_files_for(user)
+    user&.verified? ? MAX_FILES : GUEST_MAX_FILES
+  end
+
   # The ceiling for one file, which a delivery of several may exceed.
   def self.max_file_size_for(user)
     Campsend.policy.max_file_size_for(user)
@@ -30,7 +36,7 @@ class Send < ApplicationRecord
   belongs_to :user
   belongs_to :collection, optional: true
   has_secure_token :public_id
-  enum :email_status, { pending: "pending", sent: "sent", failed: "failed" }, prefix: true, validate: true
+  enum :email_status, { pending: "pending", sent: "sent", failed: "failed", held: "held" }, prefix: true, validate: true
 
   scope :available, -> { where.not(published_at: nil).where(canceled_at: nil, access_revoked_at: nil, access_expires_at: Time.current..).where.not(access_token_digest: nil) }
 
@@ -52,7 +58,27 @@ class Send < ApplicationRecord
   # here because there are two callers, the composer and the MCP tool, and they
   # previously kept a copy each.
   def deliver!
+    self.email_status = "held" unless user.verified?
     return false unless collection ? admit_from_collection : admit_and_save
+
+    if email_status_held?
+      AuthenticationEmailJob.perform_later(user, "send", nil, self)
+    else
+      user.retain_files(files.blobs.to_a)
+      DeliveryEmailJob.enqueue(self)
+    end
+    true
+  end
+
+  # A held delivery goes out once its sender has proven the address it will
+  # carry. Files are retained here rather than at hold time so an address that
+  # is never confirmed leaves nothing in anyone's library.
+  def confirm!
+    with_lock do
+      return false unless email_status_held? && publication_pending?
+
+      update!(email_status: "pending")
+    end
 
     user.retain_files(files.blobs.to_a)
     DeliveryEmailJob.enqueue(self)

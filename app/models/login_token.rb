@@ -8,6 +8,7 @@ class LoginToken < ApplicationRecord
   RETURN_TO = %r{\A/(?![/\\])\S*\z}
 
   belongs_to :user
+  belongs_to :delivery, class_name: "Send", foreign_key: :send_id, optional: true
   has_secure_token :public_id
   validates :intent, inclusion: { in: INTENTS }, allow_nil: true
   validates :return_to, format: { with: RETURN_TO }, length: { maximum: 200 }, allow_nil: true
@@ -15,9 +16,9 @@ class LoginToken < ApplicationRecord
   # return_to survives the email because it lives here rather than in the
   # session. The link is often opened on a different device from the one that
   # asked for it, and sign-in resets the session anyway.
-  def self.issue_for(user, intent: nil, return_to: nil)
+  def self.issue_for(user, intent: nil, return_to: nil, delivery: nil)
     raw_token = SecureRandom.urlsafe_base64(32)
-    token = create!(user: user, intent: intent, return_to: return_to.presence,
+    token = create!(user: user, intent: intent, return_to: return_to.presence, delivery: delivery,
       token_digest: digest(raw_token), expires_at: LIFETIME.from_now)
     [ token, raw_token ]
   end

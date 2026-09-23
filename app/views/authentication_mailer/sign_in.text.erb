@@ -1,6 +1,12 @@
+<% if @delivery %>
+Confirm and send
+
+Click the link below to confirm your address and send <%= pluralize(@delivery.files.size, "file") %> to <%= @delivery.recipient_email %>. This single-use link expires in 15 minutes:
+<% else %>
 Sign in to Campsend
 
 Click the link below to sign in. This single-use link expires in 15 minutes:
+<% end %>
 
 <%= sign_in_url(public_id: @login_token.public_id, anchor: "token=#{@token}") %>
 

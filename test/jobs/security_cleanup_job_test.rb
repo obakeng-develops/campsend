@@ -34,6 +34,33 @@ class SecurityCleanupJobTest < ActiveSupport::TestCase
     assert ActiveStorage::Blob.exists?(blob.id)
   end
 
+  test "an unconfirmed sender and their held delivery are removed after a week, files included" do
+    guest = User.create_with(verified_at: nil).find_or_create_by!(email_address: "guest@example.com")
+    held_blob = create_uploaded_blob(guest)
+    held = guest.sends.new(recipient_email: "sam@example.com")
+    held.files.attach(held_blob)
+    held.deliver!
+    reserved = create_uploaded_blob(guest, filename: "never-sent.txt")
+    recent = User.create_with(verified_at: nil).find_or_create_by!(email_address: "recent@example.com")
+    verified_held = @user.sends.new(recipient_email: "sam@example.com")
+    verified_held.files.attach(create_uploaded_blob(@user))
+    verified_held.save!
+    verified_held.update!(email_status: "held")
+
+    travel 8.days do
+      recent.update!(created_at: 1.day.ago)
+      SecurityCleanupJob.perform_now
+    end
+
+    assert_not User.exists?(guest.id)
+    assert_not Send.exists?(held.id)
+    assert_not ActiveStorage::Blob.exists?(held_blob.id)
+    assert_not ActiveStorage::Blob.exists?(reserved.id)
+    assert User.exists?(recent.id), "a week has to pass first"
+    assert_not Send.exists?(verified_held.id), "a held delivery is removed on age alone"
+    assert User.exists?(@user.id), "a verified sender is never removed"
+  end
+
   test "the job still runs where multipart is not supported" do
     stale = travel_to(3.days.ago) { create_uploaded_blob(@user) }
 

@@ -4,6 +4,7 @@ module ApplicationHelper
     when "revoked" then "Access revoked"
     when "expired" then "Delivery expired"
     when "canceled" then "Delivery canceled"
+    when "held" then "Waiting for you to confirm"
     when "failed" then "Email failed"
     when "scheduled" then "Scheduled for #{send_record.recipient_name}"
     when "sending" then "Emailing #{send_record.recipient_name}"

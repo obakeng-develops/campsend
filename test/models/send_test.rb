@@ -1,6 +1,8 @@
 require "test_helper"
 
 class SendTest < ActiveSupport::TestCase
+  include ActiveJob::TestHelper
+
   setup do
     @user = User.create!(email_address: "sender@example.com")
   end
@@ -21,6 +23,58 @@ class SendTest < ActiveSupport::TestCase
     assert_not send_record.valid?
     assert_includes send_record.errors[:recipient_email], "can't be blank"
     assert_includes send_record.errors[:base], "Choose at least one file."
+  end
+
+  test "deliver! holds a delivery for an unverified sender and emails a confirm link instead of the recipient" do
+    guest = User.create_with(verified_at: nil).find_or_create_by!(email_address: "guest@example.com")
+    blob = create_uploaded_blob(guest)
+    held = guest.sends.new(recipient_email: "sam@example.com")
+    held.files.attach(blob)
+
+    assert_enqueued_with(job: AuthenticationEmailJob, args: [ guest, "send", nil, held ]) do
+      assert_no_enqueued_jobs(only: DeliveryEmailJob) { assert held.deliver! }
+    end
+
+    assert held.reload.email_status_held?
+    assert_equal "held", held.display_status
+    assert_nil held.publication_enqueued_at
+    assert_not guest.files.blobs.exists?(blob.id), "files are retained at confirmation, not at hold"
+  end
+
+  test "confirm! publishes a held delivery once and retains its files" do
+    guest = User.create_with(verified_at: nil).find_or_create_by!(email_address: "guest@example.com")
+    blob = create_uploaded_blob(guest)
+    held = guest.sends.new(recipient_email: "sam@example.com")
+    held.files.attach(blob)
+    held.deliver!
+
+    assert_enqueued_with(job: DeliveryEmailJob, args: [ held ]) { assert held.confirm! }
+
+    assert held.reload.email_status_pending?
+    assert guest.files.blobs.exists?(blob.id)
+    assert_no_enqueued_jobs(only: DeliveryEmailJob) { assert_not held.confirm! }
+  end
+
+  test "an unconfirmed sender may send five files, a confirmed one twenty" do
+    guest = User.create_with(verified_at: nil).find_or_create_by!(email_address: "guest@example.com")
+    six = 6.times.map { |i| create_uploaded_blob(guest, filename: "file-#{i}.txt") }
+
+    too_many = guest.sends.new(recipient_email: "sam@example.com", files: six)
+    assert_not too_many.valid?
+    assert_includes too_many.errors[:base], "Choose no more than 5 files."
+
+    assert guest.sends.new(recipient_email: "sam@example.com", files: six.first(5)).valid?
+
+    guest.verify!
+    assert guest.sends.new(recipient_email: "sam@example.com", files: six).valid?
+  end
+
+  test "a verified sender's delivery is never held" do
+    delivery = build_send
+
+    assert_enqueued_with(job: DeliveryEmailJob) { assert delivery.deliver! }
+
+    assert delivery.reload.email_status_pending?
   end
 
   test "status follows the furthest recipient event" do

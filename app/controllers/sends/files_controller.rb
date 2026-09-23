@@ -1,4 +1,5 @@
 class Sends::FilesController < ApplicationController
+  allow_unverified_access
   include ServeBlob
 
   def show

@@ -33,6 +33,7 @@ module Send::Events
 
   def display_status
     return "canceled" if canceled?
+    return "held" if email_status_held?
     return "failed" if email_status_failed?
     return "scheduled" if scheduled?
     return "sending" if email_status_pending?

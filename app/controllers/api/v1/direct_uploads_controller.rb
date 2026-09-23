@@ -6,6 +6,7 @@ class Api::V1::DirectUploadsController < ActiveStorage::DirectUploadsController
   # anybody is here. A browser without one still falls through to its session.
   before_action :authenticate_api_token, prepend: true
   before_action :require_writable_api_token
+  allow_unverified_access
   # A bearer token is not a cookie, so there is nothing for a forged request to
   # ride on. A browser session still has one and still gets checked.
   skip_forgery_protection
