@@ -20,7 +20,7 @@ class MailerCopyTest < ActionMailer::TestCase
     mail = AuthenticationMailer.with(login_token: login_token, token: raw_token).sign_in
 
     assert_equal "Confirm your delivery to sam@example.com", mail.subject
-    assert_includes mail.text_part.body.decoded, "confirm your address and send 1 file to sam@example.com"
+    assert_includes mail.text_part.body.decoded, "confirm your address and send 1 file to sam@example.com. This single-use link works for 7 days:"
     assert_includes mail.html_part.body.decoded, "Confirm and send"
   end
 

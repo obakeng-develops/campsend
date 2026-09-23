@@ -1,5 +1,5 @@
 class SecurityCleanupJob < ApplicationJob
-  HELD_LIFETIME = 7.days
+  HELD_LIFETIME = LoginToken::CONFIRMATION_LIFETIME
 
   def perform
     LoginToken.where("expires_at < ? OR used_at < ?", Time.current, 1.day.ago).delete_all
