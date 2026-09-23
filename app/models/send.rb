@@ -1,6 +1,7 @@
 class Send < ApplicationRecord
   ACCESS_LIFETIME = 30.days
   MAX_FILES = 20
+  GUEST_MAX_FILES = 5
   MAX_SEND_SIZE = 2.gigabytes
   RESERVED_SLUGS = %w[access api d download files opened rails session shared sign-in sends up].freeze
   SLUG_FORMAT = /\A[a-z0-9]+(?:-[a-z0-9]+)*\z/
@@ -16,6 +17,11 @@ class Send < ApplicationRecord
 
   def self.human_max_size_for(user)
     ActiveSupport::NumberHelper.number_to_human_size(max_size_for(user))
+  end
+
+  # A sender who has not confirmed their address gets a smaller delivery.
+  def self.max_files_for(user)
+    user&.verified? ? MAX_FILES : GUEST_MAX_FILES
   end
 
   # The ceiling for one file, which a delivery of several may exceed.

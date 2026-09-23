@@ -31,6 +31,19 @@ class UserTest < ActiveSupport::TestCase
     assert_not User.create!(email_address: "sender@example.com").guest_eligible?
   end
 
+  test "an unconfirmed sender's uploads stop at five gigabytes in total" do
+    guest = User.create_with(verified_at: nil).find_or_create_by!(email_address: "guest@example.com")
+    ActiveStorage::Blob.create_before_direct_upload!(
+      filename: "big.mov", byte_size: 4.gigabytes, checksum: Base64.strict_encode64(Digest::MD5.digest("big")), content_type: "video/quicktime"
+    ).update!(uploader_id: guest.id)
+
+    error = assert_raises(User::UploadTooLarge) { guest.reserve_blob!(byte_size: 1.5.gigabytes) }
+    assert_equal "Confirm your email address to upload more than 5 GB.", error.message
+
+    guest.verify!
+    assert guest.reserve_blob!(filename: "more.mov", byte_size: 1.5.gigabytes, checksum: Base64.strict_encode64(Digest::MD5.digest("more")), content_type: "video/quicktime")
+  end
+
   test "blob reservations enforce the file size limit" do
     user = User.create!(email_address: "sender@example.com")
 

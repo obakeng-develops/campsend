@@ -1,6 +1,7 @@
 class User < ApplicationRecord
   class InvalidUploadSize < StandardError; end
   class UploadTooLarge < StandardError; end
+  GUEST_STORAGE_LIMIT = 5.gigabytes
 
   has_many :login_tokens, dependent: :delete_all
   has_many :api_tokens, dependent: :delete_all
@@ -43,6 +44,7 @@ class User < ApplicationRecord
       byte_size = attributes.fetch(:byte_size).to_i
       raise InvalidUploadSize, "File size cannot be negative." if byte_size.negative?
       raise UploadTooLarge, "File exceeds Campsend's #{Send.human_max_file_size_for(self)} limit." if byte_size > Send.max_file_size_for(self)
+      raise UploadTooLarge, "Confirm your email address to upload more than #{ActiveSupport::NumberHelper.number_to_human_size(GUEST_STORAGE_LIMIT)}." if !verified? && storage_used + byte_size > GUEST_STORAGE_LIMIT
 
       Campsend.policy.admit_storage(user: self, byte_size:) do
         key = "#{Campsend.policy.storage_key_prefix_for(user: self)}/#{ActiveStorage::Blob.generate_unique_secure_token}"

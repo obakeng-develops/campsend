@@ -55,6 +55,20 @@ class SendTest < ActiveSupport::TestCase
     assert_no_enqueued_jobs(only: DeliveryEmailJob) { assert_not held.confirm! }
   end
 
+  test "an unconfirmed sender may send five files, a confirmed one twenty" do
+    guest = User.create_with(verified_at: nil).find_or_create_by!(email_address: "guest@example.com")
+    six = 6.times.map { |i| create_uploaded_blob(guest, filename: "file-#{i}.txt") }
+
+    too_many = guest.sends.new(recipient_email: "sam@example.com", files: six)
+    assert_not too_many.valid?
+    assert_includes too_many.errors[:base], "Choose no more than 5 files."
+
+    assert guest.sends.new(recipient_email: "sam@example.com", files: six.first(5)).valid?
+
+    guest.verify!
+    assert guest.sends.new(recipient_email: "sam@example.com", files: six).valid?
+  end
+
   test "a verified sender's delivery is never held" do
     delivery = build_send
 

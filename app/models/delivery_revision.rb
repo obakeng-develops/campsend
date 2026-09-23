@@ -14,7 +14,7 @@ class DeliveryRevision < ApplicationRecord
     end
 
     def files_are_within_limits
-      errors.add(:base, "Choose no more than #{Send::MAX_FILES} files.") if files.size > Send::MAX_FILES
+      errors.add(:base, "Choose no more than #{Send.max_files_for(delivery&.user)} files.") if files.size > Send.max_files_for(delivery&.user)
       errors.add(:base, "Files must total #{Send.human_max_size_for(delivery&.user)} or less.") if files.sum(&:byte_size) > Send.max_size_for(delivery&.user)
     end
 
