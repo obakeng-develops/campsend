@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_09_04_094338) do
+ActiveRecord::Schema[8.1].define(version: 2026_09_23_120000) do
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
     t.datetime "created_at", null: false
@@ -140,11 +140,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_04_094338) do
     t.string "intent"
     t.string "public_id", null: false
     t.string "return_to"
+    t.integer "send_id"
     t.string "token_digest", null: false
     t.datetime "updated_at", null: false
     t.datetime "used_at"
     t.integer "user_id", null: false
     t.index ["public_id"], name: "index_login_tokens_on_public_id", unique: true
+    t.index ["send_id"], name: "index_login_tokens_on_send_id"
     t.index ["token_digest"], name: "index_login_tokens_on_token_digest", unique: true
     t.index ["user_id"], name: "index_login_tokens_on_user_id"
   end
@@ -191,6 +193,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_04_094338) do
     t.datetime "created_at", null: false
     t.string "email_address", null: false
     t.datetime "updated_at", null: false
+    t.datetime "verified_at"
     t.index ["email_address"], name: "index_users_on_email_address", unique: true
   end
 
@@ -205,6 +208,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_09_04_094338) do
   add_foreign_key "delivery_revisions", "sends"
   add_foreign_key "google_drive_imports", "active_storage_blobs", column: "blob_id", on_delete: :nullify
   add_foreign_key "google_drive_imports", "users"
+  add_foreign_key "login_tokens", "sends", on_delete: :nullify
   add_foreign_key "login_tokens", "users"
   add_foreign_key "send_events", "sends"
   add_foreign_key "sends", "collections", column: ["collection_id", "user_id"], primary_key: ["id", "user_id"]

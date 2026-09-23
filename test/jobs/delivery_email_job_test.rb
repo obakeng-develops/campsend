@@ -41,6 +41,17 @@ class DeliveryEmailJobTest < ActiveSupport::TestCase
     assert @delivery.reload.published?
   end
 
+  test "a held delivery is never published, whoever enqueues it" do
+    @delivery.update!(email_status: "held")
+
+    assert_no_difference -> { ActionMailer::Base.deliveries.size } do
+      DeliveryEmailJob.perform_now(@delivery)
+    end
+
+    assert_nil @delivery.reload.published_at
+    assert @delivery.email_status_held?
+  end
+
   test "canceled deliveries do not publish" do
     @delivery.update!(scheduled_at: 2.hours.from_now)
     @delivery.cancel!

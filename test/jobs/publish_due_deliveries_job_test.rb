@@ -14,6 +14,8 @@ class PublishDueDeliveriesJobTest < ActiveSupport::TestCase
     published = create_delivery(user)
     published.issue_access_token!
     published.record_event!(:sent)
+    held = create_delivery(user)
+    held.update!(email_status: "held")
 
     assert_enqueued_with(job: DeliveryEmailJob, args: [ due ]) do
       PublishDueDeliveriesJob.perform_now
@@ -21,6 +23,7 @@ class PublishDueDeliveriesJobTest < ActiveSupport::TestCase
     enqueued_ids = enqueued_jobs.filter_map { |job| job.fetch(:args).first.dig("_aj_globalid") if job.fetch(:job) == DeliveryEmailJob }
     assert_equal [ due.to_global_id.to_s ], enqueued_ids
     assert_not_includes enqueued_ids, future.to_global_id.to_s
+    assert_not_includes enqueued_ids, held.to_global_id.to_s
 
     assert_no_enqueued_jobs only: DeliveryEmailJob do
       PublishDueDeliveriesJob.perform_now

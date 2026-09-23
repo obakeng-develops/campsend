@@ -9,6 +9,28 @@ class UserTest < ActiveSupport::TestCase
     assert_equal user.id, duplicate.id
   end
 
+  test "a user is verified by default, and only a sign-in request creates one who is not" do
+    assert User.create!(email_address: "sender@example.com").verified?
+
+    guest = User.create_with(verified_at: nil).find_or_create_by!(email_address: "guest@example.com")
+    assert_not guest.verified?
+
+    guest.verify!
+    assert guest.reload.verified?
+  end
+
+  test "guest eligibility ends with verification or a first delivery" do
+    guest = User.create_with(verified_at: nil).find_or_create_by!(email_address: "guest@example.com")
+    assert guest.guest_eligible?
+
+    held = guest.sends.new(recipient_email: "sam@example.com")
+    held.files.attach(create_uploaded_blob(guest))
+    held.save!
+    assert_not guest.guest_eligible?
+
+    assert_not User.create!(email_address: "sender@example.com").guest_eligible?
+  end
+
   test "blob reservations enforce the file size limit" do
     user = User.create!(email_address: "sender@example.com")
 

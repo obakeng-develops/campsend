@@ -30,7 +30,7 @@ class Send < ApplicationRecord
   belongs_to :user
   belongs_to :collection, optional: true
   has_secure_token :public_id
-  enum :email_status, { pending: "pending", sent: "sent", failed: "failed" }, prefix: true, validate: true
+  enum :email_status, { pending: "pending", sent: "sent", failed: "failed", held: "held" }, prefix: true, validate: true
 
   scope :available, -> { where.not(published_at: nil).where(canceled_at: nil, access_revoked_at: nil, access_expires_at: Time.current..).where.not(access_token_digest: nil) }
 
@@ -52,7 +52,27 @@ class Send < ApplicationRecord
   # here because there are two callers, the composer and the MCP tool, and they
   # previously kept a copy each.
   def deliver!
+    self.email_status = "held" unless user.verified?
     return false unless collection ? admit_from_collection : admit_and_save
+
+    if email_status_held?
+      AuthenticationEmailJob.perform_later(user, "send", nil, self)
+    else
+      user.retain_files(files.blobs.to_a)
+      DeliveryEmailJob.enqueue(self)
+    end
+    true
+  end
+
+  # A held delivery goes out once its sender has proven the address it will
+  # carry. Files are retained here rather than at hold time so an address that
+  # is never confirmed leaves nothing in anyone's library.
+  def confirm!
+    with_lock do
+      return false unless email_status_held? && publication_pending?
+
+      update!(email_status: "pending")
+    end
 
     user.retain_files(files.blobs.to_a)
     DeliveryEmailJob.enqueue(self)
