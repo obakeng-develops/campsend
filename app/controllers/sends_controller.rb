@@ -1,5 +1,8 @@
 class SendsController < ApplicationController
-  allow_unverified_access only: %i[new create show cancel]
+  # The composer is open to anyone. The address a visitor gives there becomes
+  # a guest session before the first upload needs an owner.
+  allow_unauthenticated_access only: :new
+  allow_unverified_access only: %i[create show cancel]
   before_action :set_send, only: %i[show edit update destroy cancel revoke_access rotate_access confirm]
   rate_limit to: 20, within: 1.hour, only: :create, by: -> { current_user.id }
 
@@ -8,8 +11,8 @@ class SendsController < ApplicationController
   end
 
   def new
-    @send = current_user.sends.new
-    @first_delivery = !current_user.sends.exists?
+    @send = current_user ? current_user.sends.new : Send.new
+    @first_delivery = current_user.nil? || !current_user.sends.exists?
     if @first_delivery && !session[:first_composer_viewed]
       session[:first_composer_viewed] = true
       WideEvent.add(onboarding_event: "first_composer_viewed")
@@ -155,6 +158,8 @@ class SendsController < ApplicationController
     end
 
     def set_send_sources
+      return @collections = @library_files = [] unless current_user
+
       @collections = current_user.collections.active.joins(:collection_files).distinct.includes(:blobs).order(:name)
       @collection ||= @collections.find { |collection| collection.id.to_s == (params[:collection_id] || params.dig(:send, :collection_id)).to_s }
       files = current_user.files.attachments.includes(:blob).order(created_at: :desc)

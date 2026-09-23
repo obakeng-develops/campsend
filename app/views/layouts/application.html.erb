@@ -129,7 +129,8 @@
         <main class="app-main"><%= yield %></main>
       </div>
     <% else %>
-      <main class="guest-main"><%= yield %></main>
+      <%# The composer and delivery pages are laid out for the shell's main column; a guest sees them without the shell. %>
+      <main class="<%= controller_name == "sends" ? "app-main" : "guest-main" %>"><%= yield %></main>
     <% end %>
   </body>
 </html>

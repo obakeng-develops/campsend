@@ -65,8 +65,11 @@ module Authentication
       redirect_to new_session_path, alert: "Confirm your email address to continue." unless verified?
     end
 
+    # A guest keeps their session rather than getting a fresh one: the composer
+    # they are standing in was rendered with its token, and the next thing it
+    # does is submit.
     def start_session_for(user, guest: false)
-      reset_session
+      reset_session unless guest
       session[:user_id] = user.id
       session[:authenticated_at] = Time.current.to_i
       session[:guest] = true if guest

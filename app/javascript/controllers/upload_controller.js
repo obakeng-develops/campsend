@@ -13,17 +13,19 @@ const PARTS_PER_REQUEST = 100
 let lastId = 0
 
 export default class extends Controller {
-  static targets = ["input"]
+  static targets = ["input", "senderEmail"]
 
   async submit(event) {
     if (this.resubmitting) return
 
     const pending = this.inputTargets.flatMap((input) => Array.from(input.files).map((file) => ({ input, file })))
-    if (pending.length === 0) return
+    const needsGuest = this.hasSenderEmailTarget && !this.senderEmailTarget.disabled
+    if (pending.length === 0 && !needsGuest) return
 
     event.preventDefault()
 
     try {
+      if (needsGuest) await this.startGuest()
       for (const { input, file } of pending) await this.upload(input, file)
       // Disabled rather than cleared, so the browser omits them from the
       // resubmit and `required` does not block it.
@@ -33,6 +35,30 @@ export default class extends Controller {
     } catch {
       this.resubmitting = false
     }
+  }
+
+  // A visitor's address becomes a guest session before the first upload needs
+  // an owner. An address that is already claimed goes to the sign-in page.
+  async startGuest() {
+    const input = this.senderEmailTarget
+    const response = await fetch(input.dataset.startUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json", "X-CSRF-Token": this.csrfToken },
+      body: JSON.stringify({ email_address: input.value, intent: "send" })
+    })
+    if (response.status === 204) {
+      input.disabled = true
+      return
+    }
+
+    const details = await response.json().catch(() => ({}))
+    if (response.ok && details.location) {
+      window.location.assign(details.location)
+      throw new Error("Continuing on the sign-in page.")
+    }
+    const message = details.error || "We couldn’t start with that email address. Try again in a few minutes."
+    alert(message)
+    throw new Error(message)
   }
 
   submitForm() {

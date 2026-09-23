@@ -173,6 +173,47 @@ class AuthenticationFlowTest < ActionDispatch::IntegrationTest
     assert_select "a.back-link", count: 0
   end
 
+  test "anyone may open the composer, and the address they give there starts a guest session" do
+    get new_send_path
+
+    assert_response :success
+    assert_select "body.guest-body"
+    assert_select "main.app-main"
+    assert_select "input[name='sender_email'][required][data-start-url=?]", session_path
+    assert_select "input[type='file']"
+
+    post session_path, params: { email_address: "guest@example.com", intent: "send" }, as: :json
+
+    assert_response :no_content
+    assert session[:guest]
+    assert_equal User.last.id, session[:user_id]
+
+    post rails_direct_uploads_path, params: { blob: blob_params }, as: :json
+    assert_response :success
+    get new_send_path
+    assert_select "input[name='sender_email']", count: 0
+  end
+
+  test "a claimed address given in the composer is sent to the sign-in page" do
+    User.create!(email_address: "sender@example.com")
+
+    post session_path, params: { email_address: "sender@example.com", intent: "send" }, as: :json
+
+    assert_response :success
+    assert_equal new_session_path(intent: "send"), response.parsed_body.fetch("location")
+    assert_nil session[:user_id]
+
+    post session_path, params: { email_address: "not-an-email", intent: "send" }, as: :json
+    assert_response :unprocessable_content
+    assert_equal "Enter a valid email address.", response.parsed_body.fetch("error")
+  end
+
+  test "sending from the composer without a session goes to sign-in" do
+    post sends_path, params: { send: { recipient_email: "sam@example.com" } }
+
+    assert_redirected_to new_session_path
+  end
+
   test "a claimed address never gets a guest session" do
     User.create!(email_address: "sender@example.com")
 
@@ -225,7 +266,9 @@ class AuthenticationFlowTest < ActionDispatch::IntegrationTest
     end
 
     get new_send_path
-    assert_redirected_to new_session_path
+    assert_select "input[name='sender_email']", count: 1, message: "the composer asks for an address again"
+    post rails_direct_uploads_path, params: { blob: blob_params }, as: :json
+    assert_response :unauthorized
   end
 
   test "consuming a sign-in link verifies the sender" do

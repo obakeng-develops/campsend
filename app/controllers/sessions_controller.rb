@@ -20,11 +20,9 @@ class SessionsController < ApplicationController
     # An address nobody has proven and nothing has been built under goes
     # straight to the composer. The proof is asked for at the moment of sending.
     if intent && user.guest_eligible?
-      send_intent_started_at = session[:send_intent_started_at]
       start_session_for(user, guest: true)
-      session[:send_intent_started_at] = send_intent_started_at
       WideEvent.add(user_id: user.id, onboarding_event: "guest_started", authentication_intent: intent)
-      return redirect_to new_send_path
+      return request.format.json? ? head(:no_content) : redirect_to(new_send_path)
     end
 
     WideEvent.add(onboarding_event: "sign_in_requested", authentication_intent: intent) if intent
@@ -32,8 +30,11 @@ class SessionsController < ApplicationController
 
     session[:sign_in_email] = email_address
     session[:sign_in_intent] = intent
-    redirect_to new_session_path(intent: intent, return_to: return_to)
+    location = new_session_path(intent: intent, return_to: return_to)
+    request.format.json? ? render(json: { location: location }) : redirect_to(location)
   rescue ActiveRecord::RecordInvalid
+    return render json: { error: "Enter a valid email address." }, status: :unprocessable_entity if request.format.json?
+
     flash.now[:alert] = "Enter a valid email address."
     render :new, status: :unprocessable_entity
   rescue ActiveRecord::RecordNotUnique
