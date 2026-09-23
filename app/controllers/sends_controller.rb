@@ -2,7 +2,7 @@ class SendsController < ApplicationController
   # The composer is open to anyone. The address a visitor gives there becomes
   # a guest session before the first upload needs an owner.
   allow_unauthenticated_access only: :new
-  allow_unverified_access only: %i[create show cancel]
+  allow_unverified_access only: %i[index create show cancel]
   before_action :set_send, only: %i[show edit update destroy cancel revoke_access rotate_access confirm]
   rate_limit to: 20, within: 1.hour, only: :create, by: -> { current_user.id }
 

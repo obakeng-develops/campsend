@@ -170,7 +170,7 @@ class AuthenticationFlowTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "body.guest-body"
     assert_select ".site-sidebar", count: 0
-    assert_select "a.back-link", count: 0
+    assert_select "a.back-link[href=?]", sends_path, text: /Your deliveries/
   end
 
   test "anyone may open the composer, and the address they give there starts a guest session" do

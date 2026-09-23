@@ -391,6 +391,7 @@
   .status-pill--scheduled, .status-pill--held { color: var(--focus); }
   .status-pill--failed, .status-pill--revoked, .status-pill--expired { color: var(--negative); }
   .status-pill--canceled { color: var(--text-tertiary); }
+  .guest-notice { background: var(--bg-secondary); border: 1px solid var(--border-secondary); border-radius: var(--radius-xl); color: var(--text-secondary); display: grid; gap: var(--space-4); justify-items: start; margin-bottom: var(--space-8); padding: var(--space-6); }
   .first-delivery-complete { align-items: start; background: color-mix(in srgb, var(--positive) 7%, var(--bg-primary)); border: 1px solid color-mix(in srgb, var(--positive) 22%, var(--border-secondary)); border-radius: var(--radius-xl); display: grid; gap: var(--space-5); grid-template-columns: auto minmax(0, 1fr); margin-bottom: var(--space-8); padding: var(--space-6); transition: opacity var(--transition-enter), transform var(--transition-enter); }
   .first-delivery-complete__mark { align-items: center; background: var(--positive); border-radius: 50%; color: #fff; display: flex; font-size: 1rem; height: 2.5rem; justify-content: center; width: 2.5rem; }
   .first-delivery-complete h1 { font-size: clamp(1.5rem, 4vw, 2rem); }

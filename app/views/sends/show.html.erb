@@ -23,7 +23,7 @@
 <% end %>
 
 <div class="detail-heading">
-  <% if verified? %><%= link_to sends_path, class: "back-link" do %><span aria-hidden="true">←</span> Sent<% end %><% end %>
+  <%= link_to sends_path, class: "back-link" do %><span aria-hidden="true">←</span> Sent<% end %>
   <% status = @send.display_status %>
   <span class="status-pill status-pill--<%= status %>"><%= status.titleize %></span>
 </div>

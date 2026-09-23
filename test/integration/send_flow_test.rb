@@ -587,6 +587,26 @@ class SendFlowTest < ActionDispatch::IntegrationTest
     assert held.reload.canceled?
   end
 
+  test "a returning guest finds their held deliveries and can ask for the link again" do
+    delete session_path
+    start_guest_as "guest@example.com"
+    held = hold_delivery(User.last, "sam@example.com")
+
+    get sends_path
+    assert_response :success
+    assert_select "body.guest-body"
+    assert_select ".send-card[href=?]", send_path(held)
+    assert_select ".guest-notice", text: /sending as guest@example.com/
+    assert_select ".guest-notice form[action=?]", session_path
+
+    assert_enqueued_with(job: AuthenticationEmailJob, args: [ User.last, "send", nil ]) do
+      post session_path, params: { email_address: "guest@example.com", intent: "send" }
+    end
+    assert_redirected_to new_session_path(intent: "send")
+    follow_redirect!
+    assert_select "h1", text: "Check your inbox."
+  end
+
   test "rotating access cannot un-hold a delivery" do
     held = hold_delivery(@user, "sam@example.com")
     held.update!(email_status: "held")

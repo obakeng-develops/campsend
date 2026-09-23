@@ -10,6 +10,13 @@
   <% end %>
 </div>
 
+<% unless verified? %>
+  <section class="guest-notice" role="status">
+    <p>You’re sending as <strong><%= current_user.email_address %></strong>. Deliveries wait here until you open the link we emailed you. Confirming also unlocks My Files and the full limits.</p>
+    <%= button_to "Email me the link again", session_path, params: { email_address: current_user.email_address, intent: "send" }, class: "button" %>
+  </section>
+<% end %>
+
 <% if @sends.any? %>
   <div class="send-stream">
     <% @sends.each do |delivery| %>
