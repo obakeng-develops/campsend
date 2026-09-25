@@ -5,7 +5,7 @@
 <% if @delivery %>
   <h1 style="font-size: 1.25rem; font-weight: 600; margin: 0 0 0.75rem;">Confirm and send</h1>
 
-  <p style="color: #525252; margin: 0 0 1.5rem;">Click the button below to confirm your address and send <%= pluralize(@delivery.files.size, "file") %> to <%= @delivery.recipient_email %>. This single-use link expires in 15 minutes.</p>
+  <p style="color: #525252; margin: 0 0 1.5rem;">Click the button below to confirm your address and send <%= pluralize(@delivery.files.size, "file") %> to <%= @delivery.recipient_email %>. This single-use link works for 7 days.</p>
 <% else %>
   <h1 style="font-size: 1.25rem; font-weight: 600; margin: 0 0 0.75rem;">Sign in to Campsend</h1>
 

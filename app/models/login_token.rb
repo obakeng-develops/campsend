@@ -1,5 +1,8 @@
 class LoginToken < ApplicationRecord
   LIFETIME = 15.minutes
+  # A sign-in link is clicked seconds after it is asked for. A link that
+  # confirms a held delivery is opened whenever its sender next reads mail.
+  CONFIRMATION_LIFETIME = 7.days
   INTENTS = %w[send].freeze
   # A path on this site and nothing else. One leading slash, so a
   # protocol-relative //example.com cannot pass, and no backslash after it,
@@ -19,7 +22,7 @@ class LoginToken < ApplicationRecord
   def self.issue_for(user, intent: nil, return_to: nil, delivery: nil)
     raw_token = SecureRandom.urlsafe_base64(32)
     token = create!(user: user, intent: intent, return_to: return_to.presence, delivery: delivery,
-      token_digest: digest(raw_token), expires_at: LIFETIME.from_now)
+      token_digest: digest(raw_token), expires_at: (delivery ? CONFIRMATION_LIFETIME : LIFETIME).from_now)
     [ token, raw_token ]
   end
 

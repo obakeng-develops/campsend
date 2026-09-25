@@ -1,7 +1,7 @@
 <% if @delivery %>
 Confirm and send
 
-Click the link below to confirm your address and send <%= pluralize(@delivery.files.size, "file") %> to <%= @delivery.recipient_email %>. This single-use link expires in 15 minutes:
+Click the link below to confirm your address and send <%= pluralize(@delivery.files.size, "file") %> to <%= @delivery.recipient_email %>. This single-use link works for 7 days:
 <% else %>
 Sign in to Campsend
 
