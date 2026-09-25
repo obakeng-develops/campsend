@@ -51,7 +51,7 @@ class SendsController < ApplicationController
       session[:first_delivery_completed_id] = @send.id if @first_delivery
       redirect_to send_path(@send, onboarding: ("complete" if @first_delivery)), notice: (notice unless @first_delivery)
     else
-      WideEvent.add(first_delivery: true, onboarding_event: "first_delivery_failed") if @first_delivery
+      WideEvent.add(delivery_errors: @send.errors.full_messages, file_count: Array(attributes[:files]).compact_blank.size, onboarding_event: ("first_delivery_failed" if @first_delivery), first_delivery: @first_delivery)
       set_send_sources
       render :new, status: :unprocessable_entity
     end
