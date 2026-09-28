@@ -1,6 +1,9 @@
 class SignInsController < ApplicationController
   allow_unauthenticated_access
   before_action :set_private_cache
+  # The link is still unused when this happens, so the page says what to fix
+  # and the same link works once it is fixed.
+  rescue_from ActionController::InvalidAuthenticityToken, with: :cookie_blocked
 
   def show
     @login_token = LoginToken.find_by(public_id: params[:public_id])
@@ -33,6 +36,11 @@ class SignInsController < ApplicationController
   end
 
   private
+    def cookie_blocked
+      WideEvent.add(outcome: "cookie_blocked")
+      render :cookie_blocked, status: :unprocessable_entity
+    end
+
     def set_private_cache
       response.headers["Cache-Control"] = "private, no-store"
     end
