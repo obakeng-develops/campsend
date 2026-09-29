@@ -24,6 +24,11 @@ export default class extends Controller {
 
     event.preventDefault()
 
+    // A guest has no library to pick from, so a submit with no file chosen is
+    // the keyboard's Go button in the email field. Say so here rather than
+    // creating their session and bouncing them off the server.
+    if (pending.length === 0) return this.reportMissingFiles()
+
     try {
       if (needsGuest) await this.startGuest()
       for (const { input, file } of pending) await this.upload(input, file)
@@ -35,6 +40,15 @@ export default class extends Controller {
     } catch {
       this.resubmitting = false
     }
+  }
+
+  reportMissingFiles() {
+    const box = this.element.querySelector("[data-upload-progress-target=error]")
+    if (box) {
+      box.textContent = "Choose at least one file, then send."
+      box.hidden = false
+    }
+    this.element.querySelector("[data-file-drop-target=zone]")?.scrollIntoView({ block: "center" })
   }
 
   // A visitor's address becomes a guest session before the first upload needs
