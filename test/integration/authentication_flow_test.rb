@@ -29,6 +29,21 @@ class AuthenticationFlowTest < ActionDispatch::IntegrationTest
     assert_redirected_to new_session_path
   end
 
+  test "a sign-in submitted without its cookie explains itself and keeps the link usable" do
+    user = User.create!(email_address: "sender@example.com")
+    login_token, raw_token = LoginToken.issue_for(user)
+
+    with_forgery_protection do
+      post consume_sign_in_path(public_id: login_token.public_id), params: { token: raw_token }
+    end
+
+    assert_response :unprocessable_content
+    assert_select ".auth-card h1", text: "Your browser blocked the sign-in."
+    assert_select ".auth-copy", text: /your link still works/
+    assert login_token.reload.usable?
+    assert_nil session[:user_id]
+  end
+
   test "self-hosted mode starts at sign-in and has no pricing page" do
     get root_path
     assert_redirected_to new_session_path
@@ -373,6 +388,14 @@ class AuthenticationFlowTest < ActionDispatch::IntegrationTest
   end
 
   private
+    def with_forgery_protection
+      original = ActionController::Base.allow_forgery_protection
+      ActionController::Base.allow_forgery_protection = true
+      yield
+    ensure
+      ActionController::Base.allow_forgery_protection = original
+    end
+
     def reserve_storage(user, byte_size)
       ActiveStorage::Blob.create_before_direct_upload!(
         filename: "reserved.bin",
