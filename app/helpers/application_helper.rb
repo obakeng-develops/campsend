@@ -1,4 +1,8 @@
 module ApplicationHelper
+  def mail_from_address
+    Mail::Address.new(ApplicationMailer.default[:from]).address
+  end
+
   def status_sentence(send_record)
     case send_record.display_status
     when "revoked" then "Access revoked"

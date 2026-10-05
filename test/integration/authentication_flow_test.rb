@@ -91,11 +91,23 @@ class AuthenticationFlowTest < ActionDispatch::IntegrationTest
     follow_redirect!
     assert_select "h1", text: "Check your inbox."
     assert_select ".auth-copy", text: /new@example.com/
-    assert_select "form", count: 0
-    # The only way onward is the inbox. A button here reads as the next step
-    # on a phone and gets tapped, which requests a second link.
-    assert_select ".button", count: 0
+    assert_select ".auth-copy", text: /Search for an email from hello@campsend\.local, and check your spam folder/
+    # The only way onward is the inbox. A live button here reads as the next
+    # step on a phone and gets tapped, so the resend starts disabled and a
+    # countdown releases it.
+    assert_select "[data-controller='resend'] form[action=?]", session_path do
+      assert_select "button[disabled][data-resend-target='button']", text: "Resend email"
+      assert_select "input[name='email_address'][value='new@example.com']", count: 1
+      assert_select "input[name='intent']", count: 0
+    end
+    assert_select ".button:not([disabled])", count: 0
     assert_select ".fine-print a", text: "Use another email"
+    assert_select ".fine-print a[href='mailto:hello@campsend.local']", text: "Contact us"
+
+    assert_enqueued_with(job: AuthenticationEmailJob, args: [ User.last, nil, nil ]) do
+      post session_path, params: { email_address: "new@example.com" }
+    end
+    assert_redirected_to new_session_path
 
     get new_session_path
     assert_select "h1", text: "Check your inbox."
